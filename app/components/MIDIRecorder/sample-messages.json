@@ -1,0 +1,141 @@
+[{
+    "isTrusted": true,
+    "data": [
+      144,
+      72,
+      100
+    ],
+    "type": "midimessage",
+    "delta": 422.8000000002794
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      72,
+      0
+    ],
+    "type": "midimessage",
+    "delta": 598.3999999880325
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      72,
+      100
+    ],
+    "type": "midimessage",
+    "delta": 730.8999999950174
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      72,
+      0
+    ],
+    "type": "midimessage",
+    "delta": 943.8000000081956
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      74,
+      100
+    ],
+    "type": "midimessage",
+    "delta": 1023.79999999539
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      74,
+      0
+    ],
+    "type": "midimessage",
+    "delta": 1221.400000009453
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      76,
+      100
+    ],
+    "type": "midimessage",
+    "delta": 1312.8000000142492
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      76,
+      0
+    ],
+    "type": "midimessage",
+    "delta": 1429.2999999888707
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      72,
+      100
+    ],
+    "type": "midimessage",
+    "delta": 1630.8999999891967
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      72,
+      0
+    ],
+    "type": "midimessage",
+    "delta": 1792.5999999861233
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      76,
+      100
+    ],
+    "type": "midimessage",
+    "delta": 1980.5000000051223
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      76,
+      0
+    ],
+    "type": "midimessage",
+    "delta": 2146.0000000079162
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      74,
+      100
+    ],
+    "type": "midimessage",
+    "delta": 2329.9000000115484
+  },
+  {
+    "isTrusted": true,
+    "data": [
+      144,
+      74,
+      0
+    ],
+    "type": "midimessage",
+    "delta": 2449.6999999973923
+  }
+]
