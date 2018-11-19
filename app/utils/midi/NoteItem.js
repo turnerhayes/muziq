@@ -54,7 +54,7 @@ export default class NoteItem {
         notes: {
           enumerable: true,
           configurable: true,
-          value: Object.freeze(notes),
+          value: notes,
         },
 
         previousItem: {
@@ -89,7 +89,5 @@ export default class NoteItem {
         },
       }
     );
-
-    return Object.freeze(this);
   }
 }

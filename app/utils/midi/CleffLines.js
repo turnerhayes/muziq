@@ -33,13 +33,10 @@ const noteNodeToName = (node) => {
 
 class Measure {
   constructor({ number, divisionOffset, rightHandItems, leftHandItems, repeat }) {
-    Object.freeze(rightHandItems);
-    Object.freeze(leftHandItems);
-
-    const items = Object.freeze({
+    const items = {
       rightHand: rightHandItems,
       leftHand: leftHandItems,
-    });
+    };
     
     Object.defineProperties(
       this,
@@ -70,7 +67,7 @@ class Measure {
       },
     );
 
-    return Object.freeze(number);
+    return number;
   }
 }
 
@@ -82,7 +79,7 @@ export default class CleffLines {
         measures: {
           enumerable: true,
           configurable: true,
-          value: Object.freeze(measures),
+          value: measures,
         },
 
         partID: {
@@ -94,12 +91,10 @@ export default class CleffLines {
         divisionOffsets: {
           enumerable: true,
           configurable: true,
-          value: Object.freeze(divisionOffsets),
+          value: divisionOffsets,
         },
       }
     );
-
-    return Object.freeze(this);
   }
 
   static fromDocument({ xmlDocument, partID }) {
@@ -160,23 +155,19 @@ export default class CleffLines {
           else {
             const chordNoteNodes = getChordNoteNodes({ xmlDocument, startNote: note });
   
-            const notes = Object.freeze(
-              [
-                note,
-                ...chordNoteNodes,
-              ].map(
-                (noteNode) => {
-                  const name = noteNodeToName(noteNode);
+            const notes = [
+              note,
+              ...chordNoteNodes,
+            ].map(
+              (noteNode) => {
+                const name = noteNodeToName(noteNode);
 
-                  return Object.freeze(
-                    {
-                      node: noteNode,
-                      number: NoteNameToNumber(name),
-                      name,
-                    }
-                  );
-                }
-              )
+                return {
+                  node: noteNode,
+                  number: NoteNameToNumber(name),
+                  name,
+                };
+              }
             );
 
             noteItem = new NoteItem({

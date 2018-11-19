@@ -6,7 +6,5 @@ export default class RepeatItem {
     if (targetMeasure) {
       this.targetMeasure = targetMeasure;
     }
-
-    return Object.freeze(this);
   }
 }

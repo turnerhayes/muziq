@@ -77,7 +77,5 @@ export default class RestItem {
         },
       }
     );
-
-    return Object.freeze(this);
   }
 }
