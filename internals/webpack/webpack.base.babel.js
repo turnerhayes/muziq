@@ -26,7 +26,6 @@ module.exports = (options) => ({
         exclude: [
           /node_modules/,
           /^\/projects\/websites\/opensheetmusicdisplay\//,
-          /^\/projects\/MIDI\.js\//,
         ],
         use: [
           {

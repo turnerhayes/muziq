@@ -58,14 +58,12 @@ const styles = {
   },
 
   activeKey: {
-    "&, &:active": {
-      transform: "rotateX(15deg)",
-      transformOrigin: "center top",
-      
-      "& $keyLabel": {
-        opacity: 1,
-        transition: "none",
-      },
+    transform: "rotateX(15deg)",
+    transformOrigin: "center top",
+    
+    "& $keyLabel": {
+      opacity: 1,
+      transition: "none",
     },
   },
   

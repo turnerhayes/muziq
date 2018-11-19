@@ -84,9 +84,9 @@
     "ip": "1.1.5",
     "jss": "^9.8.7",
     "jss-nested": "^6.0.1",
-    "localforage": "^1.7.2",
+    "localforage": "^1.7.3",
     "lodash": "^4.17.10",
-    "midi": "^0.9.5",
+    "midi": "github:turnerhayes/MIDI.ts",
     "minimist": "1.2.0",
     "mkdirp": "^0.5.1",
     "mongodb": "^3.0.2",
@@ -125,8 +125,7 @@
     "whatwg-fetch": "2.0.3",
     "winston": "^2.4.0",
     "xmldom": "^0.1.27",
-    "xmlserializer": "^0.6.1",
-    "xslt-processor": "^0.10.0"
+    "xmlserializer": "^0.6.1"
   },
   "devDependencies": {
     "@babel/runtime": "^7.0.0-beta.49",

@@ -1,4 +1,4 @@
-/* global require, Promise */
+/* global require */
 
 import React from "react";
 import PropTypes from "prop-types";
@@ -9,15 +9,33 @@ import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
+import Checkbox from "@material-ui/core/Checkbox";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import FormGroup from "@material-ui/core/FormGroup";
+import FormControl from "@material-ui/core/FormControl";
 import TextField from "@material-ui/core/TextField";
 import PlayIcon from "@material-ui/icons/PlayArrow";
 import SkipNextIcon from "@material-ui/icons/SkipNext";
+import SkipPreviousIcon from "@material-ui/icons/SkipPrevious";
 import WebMIDI from "webmidi";
-// import { xsltProcess } from "xslt-processor";
+// import Player from "midi";
 
 import Keyboard from "@app/components/Keyboard";
 import partTimeXSLTString from "@app/parttime.xsl";
-// import { NoteNameToNumber } from "../Keyboard/midi-note-converter";
+import {
+  accessWrapper,
+  midiLoadPromise,
+} from "@app/utils/midi-access";
+
+import RestItem from "./RestItem";
+import NoteItem from "./NoteItem";
+import CleffLines from "./CleffLines";
+import MIDIMessageLog from "./MIDIMessageLog";
+
+// console.log({
+//   Player,
+// });
+
 
 const req = require.context("../../musicxml", true, /\.(\w*)xml$/);
 const xmlFiles = req.keys().reduce(
@@ -29,49 +47,44 @@ const xmlFiles = req.keys().reduce(
   {}
 );
 
-let resolveMidiLoadPromise;
-
-const midiLoadPromise = new Promise(
-  (resolve, reject) => {
-    let isResolved = false;
-
-    resolveMidiLoadPromise = () => {
-      if (!isResolved) {
-        resolve();
-      }
-    };
-
-    WebMIDI.enable((err) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve();
-
-      isResolved = true;
-    });
-  }
-);
-
 const parser = new DOMParser();
 
 const partTimeXSLT = parser.parseFromString(partTimeXSLTString, "application/xml");
 
-const STORAGE_KEY = "KeyboardTutorial_xmlFile";
+const XML_FILE_STORAGE_KEY = "KeyboardTutorial_xmlFile";
 
-const NOTE_XPATH = (staffNumber) => `note[staff/text() = "${staffNumber}"]`;
+const MIDI_OUTPUT_STORAGE_KEY = "KeyboardTutorial_midiOutputID";
+
+const MIDI_INPUT_STORAGE_KEY = "KeyboardTutorial_midiInputID";
 
 const styles = {
-  keyboardContainer: {
-    overflow: "auto",
+  root: {
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
   },
-};
 
-const noteNodeToName = (node) => {
-  const step = node.querySelector("pitch step");
-  const octave = node.querySelector("pitch octave");
-  return `${step.textContent}${octave.textContent}`;
+  controlContainer: {
+    marginLeft: "2em",
+  },
+
+  keyboardContainer: {
+    overflowX: "auto",
+  },
+
+  midiInputOptionsContainer: {
+    display: "flex",
+  },
+
+  inputCheckboxes: {
+    display: "inline-flex",
+    flexDirection: "column",
+  },
+
+  midiMessagesContainer: {
+    // overflowY: "auto",
+    flex: 1,
+  },
 };
 
 class KeyboardTutorial extends React.PureComponent {
@@ -81,34 +94,104 @@ class KeyboardTutorial extends React.PureComponent {
 
   state = {
     xmlFile: null,
-    leftHandKeys: Set(),
-    rightHandKeys: Set(),
-    leftHandMeasureNumber: null,
-    rightHandMeasureNumber: null,
-    totalLeftHandDuration: 0,
-    totalRightHandDuration: 0,
     xmlDocument: null,
     midiOutputID: null,
+    midiInputID: null,
     midiOutputs: null,
+    midiInputs: null,
+    useAllOutputs: true,
+    useAllInputs: true,
     midiLoaded: false,
-    lastNoteNode: null,
-    lastLeftHandNoteNode: null,
-    lastRightHandNoteNode: null,
     scoreMetadata: Map(),
-    repeats: Set(),
     repeatCount: 0,
+    cleffLines: null,
+    currentLeftNote: null,
+    currentRightNote: null,
+    midiMessages: [],
+    isListeningToInputs: true,
+    midiKeys: Set(),
   }
 
   constructor(...args) {
     super(...args);
 
-    localForage.getItem(STORAGE_KEY).then(
+    localForage.getItem(XML_FILE_STORAGE_KEY).then(
       (value) => {
         if (value) {
           this.setState({
             xmlFile: value,
           });
         }
+      }
+    );
+
+    localForage.getItem(MIDI_OUTPUT_STORAGE_KEY).then(
+      (value) => {
+        if (value) {
+          const state = {
+            midiOutputID: value,
+          };
+
+          if (!this._hasChangedUsAllOutputs) {
+            state.useAllOutputs = false;
+          }
+
+          this.setState(
+            state,
+            () => {
+              this.unbindInputListeners();
+              this.bindInputListeners();
+            }
+          );
+        }
+      }
+    );
+
+    localForage.getItem(MIDI_INPUT_STORAGE_KEY).then(
+      (value) => {
+        if (value) {
+          const state = {
+            midiInputID: value,
+          };
+
+          if (!this._hasChangedUsAllInputs) {
+            state.useAllInputs = false;
+          }
+
+          this.setState(
+            state,
+            () => {
+              this.unbindInputListeners();
+              this.bindInputListeners();
+            }
+          );
+        }
+      }
+    );
+  }
+
+  bindInputListeners() {
+    if (!this.state.midiInputs) {
+      return;
+    }
+    
+    this.inputs().forEach(
+      (input) => {
+        accessWrapper.addInputListener(input, "noteon", "all", this.handleMIDINoteOn);
+        accessWrapper.addInputListener(input, "noteoff", "all", this.handleMIDINoteOff);
+      }
+    );
+  }
+
+  unbindInputListeners() {
+    if (!this.state.midiInputs) {
+      return;
+    }
+    
+    this.state.midiInputs.forEach(
+      (input) => {
+        accessWrapper.removeInputListener(input, "noteon", "all", this.handleMIDINoteOn);
+        accessWrapper.removeInputListener(input, "noteoff", "all", this.handleMIDINoteOff);
       }
     );
   }
@@ -122,234 +205,42 @@ class KeyboardTutorial extends React.PureComponent {
     );
 
     this.setMIDILoaded();
-    this.setDefaultMIDIOutput();
   }
   
   componentDidUpdate() {
     if (!this.state.midiLoaded) {
       this.setMIDILoaded();
     }
-
-    this.setDefaultMIDIOutput();
   }
   
   componentWillUnmount() {
     WebMIDI.removeListener("connected", this.handleDeviceConnected);
     WebMIDI.removeListener("disconnected", this.handleDeviceDisconnected);
+    
+    this.unbindInputListeners();
   }
 
-  getNextNotes({
-    lastNote = this.state.lastNoteNode,
-    partID,
-    staffNumber = 1,
-  }) {
-    if (!this.state.xmlDocument) {
-      return null;
-    }
-
-    const startMeasureNumber = lastNote ?
-      Number(lastNote.closest("measure").getAttribute("number")) :
-      1;
-
-    const note = this.state.xmlDocument.evaluate(
-      lastNote ?
-        `following-sibling::${NOTE_XPATH(staffNumber)}|ancestor::measure/following-sibling::measure/part[@id="${partID}"]/${NOTE_XPATH(staffNumber)}` :
-        `//part[@id="${partID}"]/${NOTE_XPATH(staffNumber)}`,
-      lastNote ?
-        lastNote :
-        this.state.xmlDocument,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE
-    ).singleNodeValue;
-        
-    if (!note) {
-      return null;
-    }
-
-    const duration = Number(note.querySelector("duration").textContent);
-
-    const noteMeasure = Number(note.closest("measure").getAttribute("number"));
-
-    if (note.querySelector("rest")) {
-      return {
-        rest: true,
-        duration,
-        lastNoteNode: note,
-        measureNumber: noteMeasure,
-      };
-    }
-
-    const chordNotes = this.getChordNoteNodes({ startNote: note });
-
-    const notes = [
-      noteNodeToName(note),
-      ...chordNotes.map(noteNodeToName),
-    ];
-
-
-    let crossedRepeat = null;
-
-    this.state.repeatRanges.forEach(
-      (repeatInfo) => {
-        if (
-          repeatInfo.getIn([ "start", "measureNumber" ]) <= startMeasureNumber &&
-          repeatInfo.getIn([ "end", "measureNumber" ]) < noteMeasure
-        ) {
-          crossedRepeat = repeatInfo;
-
-          // terminate loop early
-          return false;
-        }
-      }
-    );
-
-    return {
-      notes,
-      measureNumber: noteMeasure,
-      duration,
-      lastNoteNode: chordNotes.length > 0 ?
-        chordNotes[chordNotes.length - 1] :
-        note,
-      crossedRepeat,
-    };
-  }
-
-  getChordNoteNodes({ xmlDocument = this.state.xmlDocument, startNote }) {
-    const staffNumber = Number(startNote.querySelector("staff").textContent);
-
-    const siblingsIterator = xmlDocument.evaluate(
-      `following-sibling::${NOTE_XPATH(staffNumber)}`,
-      startNote,
-      null,
-      XPathResult.ORDERED_NODE_ITERATOR_TYPE
-    );
-
-    const siblings = [];
-
-    let nextNoteNode = siblingsIterator.iterateNext();
-    while (nextNoteNode && nextNoteNode.querySelector("chord")) {
-      siblings.push(nextNoteNode);
-      
-      nextNoteNode = siblingsIterator.iterateNext();
-    }
-
-    return siblings;
-  }
-
-  addRepeatStartFollowingNotes({ xmlDocument, start, partID }) {
-    const nextRightHandNote = xmlDocument.evaluate(
-      `ancestor::measure/part[@id="${partID}"]/${NOTE_XPATH(1)}`,
-      start.node,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE
-    ).singleNodeValue;
-
-    const nextLeftHandNote = xmlDocument.evaluate(
-      // eslint-disable-next-line no-magic-numbers
-      `ancestor::measure/part[@id="${partID}"]/${NOTE_XPATH(2)}`,
-      start.node,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE
-    ).singleNodeValue;
-
-    let rightNotes;
-
-    if (nextRightHandNote) {
-      const chordNotes = this.getChordNoteNodes({ xmlDocument, startNote: nextRightHandNote });
-
-      rightNotes = [
-        nextRightHandNote,
-        ...chordNotes,
-      ];
-    }
-
-    let leftNotes;
-
-    if (nextLeftHandNote) {
-      const chordNotes = this.getChordNoteNodes({ xmlDocument, startNote: nextLeftHandNote });
-
-      leftNotes = [
-        nextLeftHandNote,
-        ...chordNotes,
-      ];
-    }
-
-    start.followingNoteNodes = {
-      leftHand: leftNotes,
-      rightHand: rightNotes,
-    };
-
-    return start;
-  }
-
-  getRepeatRanges({ xmlDocument, partID }) {
-    const repeatIterator = xmlDocument.evaluate(
-      `//part[@id="${partID}"]/barline/repeat`,
-      xmlDocument,
-      null,
-      XPathResult.ORDERED_NODE_ITERATOR_TYPE
-    );
-
-    let repeatNode = repeatIterator.iterateNext();
-
-    const repeatRanges = [];
-
-    let repeatStart = null;
-
-    while (repeatNode) {
-      const measureNumber = Number(repeatNode.closest("measure").getAttribute("number"));
-      const direction = repeatNode.getAttribute("direction");
-
-      if (direction === "forward") {
-        // @todo: Find out if there is a use case where multiple forward repeats can occur without backwards repeats
-        repeatStart = {
-          node: repeatNode,
-          measureNumber,
-        };
-
-        this.addRepeatStartFollowingNotes({ xmlDocument, start: repeatStart, partID });
-      }
-      else if (direction === "backward") {
-        let start = repeatStart;
-        if (!start) {
-          if (repeatRanges.length === 0) {
-            // No start repeat, and no previous repeat end; go back to start
-            start = {
-              node: null,
-              measureNumber,
-            };
-          }
-          else {
-            // there was a previous repeat end; start from there
-            start = repeatRanges[repeatRanges.length - 1].end;
-          }
-
-          this.addRepeatStartFollowingNotes({ xmlDocument, start, partID });
-        }
-
-        repeatRanges.push({
-          start,
-          end: {
-            measureNumber,
-            node: repeatNode,
-          },
-        });
-      }
-
-      repeatNode = repeatIterator.iterateNext();
-    }
-
-    return fromJS(repeatRanges);
+  getCleffLines({ xmlDocument, partID }) {
+    const lines = CleffLines.fromDocument({ xmlDocument, partID });
+    
+    this.setState({
+      cleffLines: lines,
+    });
   }
   
   setMIDILoaded() {
     if (WebMIDI.enabled) {
       this.setState({
         midiLoaded: true,
-        midiOutputs: WebMIDI.outputs,
+        midiOutputs: Array.from(accessWrapper.outputs),
+        midiInputs: Array.from(accessWrapper.inputs),
       });
 
-      resolveMidiLoadPromise();
+      this.unbindInputListeners();
+
+      if (this.state.isListeningToInputs) {
+        this.bindInputListeners();
+      }
 
       return;
     }
@@ -358,36 +249,17 @@ class KeyboardTutorial extends React.PureComponent {
       () => {
         this.setState({
           midiLoaded: true,
-          midiOutputs: WebMIDI.outputs,
+          midiOutputs: Array.from(accessWrapper.outputs),
+          midiInputs: Array.from(accessWrapper.inputs),
         });
+
+        this.unbindInputListeners();
+
+        if (this.state.isListeningToInputs) {
+          this.bindInputListeners();
+        }
       }
     );
-  }
-
-  setDefaultMIDIOutput() {
-    this.setState((prevState) => {
-      if (!prevState.midiOutputID || !WebMIDI.getOutputById(prevState.midiOutputID)) {
-        return {
-          midiOutputID: this.getDefaultMIDIOutput()
-        };
-      }
-
-      return null;
-    });
-  }
-
-  getDefaultMIDIOutput() {
-    let outputID;
-    for (let outputIndex = 0; outputIndex  < WebMIDI.outputs.length; outputIndex++) {
-      const output = WebMIDI.outputs[outputIndex];
-      outputID = output.id;
-
-      if (output.name.toLowerCase().includes("synth")) {
-        break;
-      }
-    }
-
-    return outputID;
   }
 
   getScoreMetadata(doc) {
@@ -454,56 +326,154 @@ class KeyboardTutorial extends React.PureComponent {
     return fromJS(metadata);
   }
 
-  playNotes() {
+  playNotes({ playLeft = true, playRight = true } = {}) {
     const part = this.state.scoreMetadata.get("parts").first();
 
     const DEFAULT_CHANNEL = 1;
 
-    if (!this.state.leftHandKeys.isEmpty()) {
-      this.output().playNote(
-        this.state.leftHandKeys.toArray(),
-        part.getIn(
-          [ "midi", "channel" ],
-          DEFAULT_CHANNEL
+    const notesPlayed = {};
+
+    if (playLeft && this.state.currentLeftNote instanceof NoteItem) {
+      const notes = this.state.currentLeftNote.notes.map(
+        ({ name }) => name
+      );
+
+      notesPlayed.left = notes;
+      
+      this.outputs().forEach(
+        (output) => output.playNote(
+          notes,
+          part.getIn(
+            [ "midi", "channel" ],
+            DEFAULT_CHANNEL
+          )
+        ).stopNote(
+          notes,
+          part.getIn(
+            [ "midi", "channel" ],
+            DEFAULT_CHANNEL
+          ),
+          {
+            time: "+6000",
+          }
         )
-      ).stopNote(
-        this.state.leftHandKeys.toArray(),
-        part.getIn(
-          [ "midi", "channel" ],
-          DEFAULT_CHANNEL
-        ),
-        {
-          time: "+6000",
-        }
       );
     }
 
-    if (!this.state.rightHandKeys.isEmpty()) {
-      this.output().playNote(
-        this.state.rightHandKeys.toArray(),
-        part.getIn(
-          [ "midi", "channel" ],
-          DEFAULT_CHANNEL
+    if (playRight && this.state.currentRightNote instanceof NoteItem) {
+      const notes = this.state.currentRightNote.notes.map(
+        ({ name }) => name
+      );
+
+      notesPlayed.right = notes;
+
+      this.outputs().forEach(
+        (output) => output.playNote(
+          notes,
+          part.getIn(
+            [ "midi", "channel" ],
+            DEFAULT_CHANNEL
+          )
+        ).stopNote(
+          notes,
+          part.getIn(
+            [ "midi", "channel" ],
+            DEFAULT_CHANNEL
+          ),
+          {
+            time: "+6000",
+          }
         )
-      ).stopNote(
-        this.state.rightHandKeys.toArray(),
-        part.getIn(
-          [ "midi", "channel" ],
-          DEFAULT_CHANNEL
-        ),
-        {
-          time: "+6000",
-        }
       );
     }
   }
 
-  output() {
-    if (!WebMIDI.enabled || !this.state.midiOutputID) {
-      return null;
+  outputs() {
+    if (!WebMIDI.enabled) {
+      return [];
     }
 
-    return WebMIDI.getOutputById(this.state.midiOutputID); 
+    if (this.state.useAllOutputs) {
+      return this.state.midiOutputs;
+    }
+
+    if (!this.state.midiOutputID) {
+      return [];
+    }
+
+    const output = accessWrapper.getOutputById(this.state.midiOutputID);
+
+    if (!output) {
+      return [];
+    }
+
+    return [ output ]; 
+  }
+
+  inputs() {
+    if (!WebMIDI.enabled) {
+      return [];
+    }
+
+    if (this.state.useAllInputs) {
+      return this.state.midiInputs;
+    }
+
+    if (!this.state.midiInputID) {
+      return [];
+    }
+
+    const input = accessWrapper.getInputById(this.state.midiInputID);
+
+    return [ input ];
+  }
+
+  progressAndPlay({ fromStart = false, reverse = false } = {}) {
+    let playLeft = false;
+    let playRight = false;
+
+    this.setState((prevState) => {
+      const state = {};
+      const nextNotes = prevState.cleffLines[reverse ? "previousNotes" : "nextNotes"]({
+        currentLeftNote: fromStart ? null : prevState.currentLeftNote,
+        currentRightNote: fromStart ? null : prevState.currentRightNote,
+        repeatCount: prevState.repeatCount
+      });
+
+      if (nextNotes === null) {
+        state.currentLeftNote = null;
+      }
+      else {
+        const { leftHand, rightHand, repeated } = nextNotes;
+  
+        if (leftHand) {
+          state.currentLeftNote = leftHand;
+          playLeft = true;
+        }
+  
+        if (rightHand) {
+          state.currentRightNote = rightHand;
+          playRight = true;
+        }
+
+        if (repeated) {
+          state.repeatCount = prevState.repeatCount + 1;
+        }
+      }
+
+      return state;
+    }, () => this.playNotes({
+      playLeft,
+      playRight,
+    }));
+  }
+
+  checkPlayedNotes() {
+    const leftHandKeys = Set(this.state.currentLeftNote.notes.map((note) => note.name));
+    const rightHandKeys = Set(this.state.currentRightNote.notes.map((note) => note.name));
+    if (this.state.midiKeys.equals(leftHandKeys.union(rightHandKeys))) {
+      this.progressAndPlay();
+    }
   }
 
   handleXMLFileChange = (event) => {
@@ -514,10 +484,10 @@ class KeyboardTutorial extends React.PureComponent {
     });
 
     if (xmlFile === null) {
-      localForage.removeItem(STORAGE_KEY);
+      localForage.removeItem(XML_FILE_STORAGE_KEY);
     }
     else {
-      localForage.setItem(STORAGE_KEY, xmlFile);
+      localForage.setItem(XML_FILE_STORAGE_KEY, xmlFile);
     }
   }
 
@@ -540,25 +510,21 @@ class KeyboardTutorial extends React.PureComponent {
       const channel = scoreMetadata.getIn([ "parts", partID, "midi", "channel" ]);
 
       midiLoadPromise.then(
-        () => {
-          this.output().sendProgramChange(programNumber, channel);
-        }
+        () => this.outputs().forEach(
+          (output) => output.sendProgramChange(programNumber, channel)
+        )
       );
     }
-    
-    const repeatRanges = this.getRepeatRanges({
-      xmlDocument: doc,
-      partID
-    });
 
     this.setState(
       {
         xmlDocument: doc,
         scoreMetadata,
-        repeatRanges,
+        repeatCount: 0,
+        cleffLines: CleffLines.fromDocument({ xmlDocument: doc, partID, }),
       },
       () => {
-        this.progressAndPlay(true);
+        this.progressAndPlay({ fromStart: true });
       }
     );
   }
@@ -570,67 +536,13 @@ class KeyboardTutorial extends React.PureComponent {
       }
     );
   }
-
-  progressAndPlay(fromStart = false) {
-    this.setState((prevState) => {
-      const partID = prevState.scoreMetadata.get("parts").keySeq().first();
-  
-      let nextLeftHandNotes = this.getNextNotes({
-        partID: prevState.scoreMetadata.get("parts").keySeq().first(),
-        staffNumber: 2,
-        lastNote: fromStart ?
-          null :
-          prevState.lastLeftHandNoteNode,
-      });
-  
-      let nextRightHandNotes = this.getNextNotes({
-        partID,
-        staffNumber: 1,
-        lastNote: fromStart ?
-          null :
-          prevState.lastRightHandNoteNode,
-      });
-  
-      const state = {};
-  
-      if (!nextLeftHandNotes && !nextRightHandNotes) {
-        return;
-      }
-  
-      if (nextLeftHandNotes !== null) {
-        let measureNumber = nextLeftHandNotes.measureNumber;
-        let leftHandNotes = nextLeftHandNotes.notes;
-        let lastLeftHandNoteNode = nextLeftHandNotes.lastNoteNode;
-        let totalDuration = prevState.totalLeftHandDuration + nextLeftHandNotes.duration;
-        if (nextLeftHandNotes.crossedRepeat !== null && prevState.repeatCount === 0) {
-          state.repeatCount += 1;
-          leftHandNotes = nextLeftHandNotes.crossedRepeat.getIn([ "start", "followingNoteNodes", "leftHand" ]).map(
-            (node) => noteNodeToName(node)
-          );
-          lastLeftHandNoteNode = nextLeftHandNotes.crossedRepeat.getIn(["start", "followingNoteNodes", "leftHand"]).last();
-          measureNumber = nextLeftHandNotes.crossedRepeat.getIn([ "start", "measureNumber" ]);
-        }
-        state.leftHandKeys = Set(leftHandNotes);
-        state.lastLeftHandNoteNode = lastLeftHandNoteNode;
-        state.leftHandMeasureNumber = measureNumber;
-        state.totalLeftHandDuration = totalDuration;
-      }
-  
-      if (nextRightHandNotes !== null) {
-        let measureNumber = nextRightHandNotes.measureNumber;
-        const rightHandNotes = nextRightHandNotes.notes;
-        state.rightHandKeys = Set(rightHandNotes);
-        state.lastRightHandNoteNode = nextRightHandNotes.lastNoteNode;
-        state.rightHandMeasureNumber = measureNumber;
-        state.totalRightHandDuration = prevState.totalRightHandDuration + nextRightHandNotes.duration;
-      }
-  
-      return state;
-    }, () => this.playNotes());
-  }
-    
+ 
   handleNextNoteButtonClick = () => {
     this.progressAndPlay();
+  }
+ 
+  handlePreviousNoteButtonClick = () => {
+    this.progressAndPlay({ reverse: true });
   }
 
   changeActiveKeys({ keyString, hand }) {
@@ -660,9 +572,45 @@ class KeyboardTutorial extends React.PureComponent {
   }
 
   handleMIDIOutputChange = ({ target }) => {
+    const midiOutputID = target.value;
+
     this.setState({
-      midiOutputID: target.value,
+      midiOutputID,
     });
+
+    localForage.setItem(MIDI_OUTPUT_STORAGE_KEY, midiOutputID);
+  }
+
+  handleMIDIInputChange = ({ target }) => {
+    const midiInputID = target.value;
+
+    this.setState({
+      midiInputID,
+    });
+
+    localForage.setItem(MIDI_INPUT_STORAGE_KEY, midiInputID);
+  }
+
+  handleMIDINoteOn = ({ note }) => {
+    const noteName = `${note.name}${note.octave}`;
+
+    this.setState(
+      (prevState) => ({
+        midiKeys: prevState.midiKeys.add(noteName),
+      }),
+      () => this.checkPlayedNotes()
+    );
+  }
+
+  handleMIDINoteOff = ({ note }) => {
+    const noteName = `${note.name}${note.octave}`;
+
+    this.setState(
+      (prevState) => ({
+        midiKeys: prevState.midiKeys.delete(noteName),
+      }),
+      () => this.checkPlayedNotes()
+    );
   }
 
   handleKeyPress = ({ noteName }) => {
@@ -681,128 +629,314 @@ class KeyboardTutorial extends React.PureComponent {
     ));
   }
 
-  handleDeviceConnected = () => {
+  reloadOutputsAndInputs() {
     this.setState({
-      midiOutputs: WebMIDI.outputs,
+      midiOutputs: Array.from(accessWrapper.outputs),
+      midiInputs: Array.from(accessWrapper.inputs),
     });
+
+    this.unbindInputListeners();
+
+    if (this.state.isListeningToInputs) {
+      this.bindInputListeners();
+    }
+  }
+
+  handleDeviceConnected = () => {
+    this.reloadOutputsAndInputs();
   }
 
   handleDeviceDisconnected = () => {
+    this.reloadOutputsAndInputs();
+  }
+
+  handleUseAllOutputsChange = (event) => {
+    this._hasChangedUsAllOutputs = true;
+
     this.setState({
-      midiOutputs: WebMIDI.outputs,
+      useAllOutputs: event.target.checked,
     });
   }
 
+  handleUseAllInputsChange = (event) => {
+    this._hasChangedUsAllInputs = true;
+
+    this.setState({
+      useAllInputs: event.target.checked,
+    });
+  }
+
+  handleListenToInputsChange = (event) => {
+    this.setState(
+      {
+        isListeningToInputs: event.target.checked,
+      },
+      () => {
+        this.unbindInputListeners();
+        
+        if (this.state.isListeningToInputs) {
+          this.bindInputListeners();
+        }
+      }
+    );
+  }
+
   render() {
+    const canPlay = this.state.midiLoaded && (
+      (
+        this.state.useAllOutputs && this.state.midiOutputs.length > 0
+      ) || (
+        this.state.midiOutputID
+      )
+    );
+
     return (
-      <div>
-        {
-          this.state.midiLoaded && (
-            <div>
-              <Select
-                value={this.state.midiOutputID || ""}
-                onChange={this.handleMIDIOutputChange}
-                label="MIDI Output"
-              >
-                {
-                  this.state.midiOutputs.map(
-                    (output) => (
-                      <MenuItem
-                        key={output.id}
-                        value={output.id}
-                      >{output.name}</MenuItem>
-                    )
-                  )
-                }
-              </Select>
-            </div>
-          )
-        }
-        <Select
-          value={this.state.xmlFile || ""}
-          onChange={this.handleXMLFileChange}
+      <div
+        className={this.props.classes.root}
+      >
+        <div
+          className={this.props.classes.controlContainer}
         >
           {
-            Object.keys(xmlFiles).map(
-              (fileName) => (
-                <MenuItem
-                  key={fileName}
-                  value={fileName}
+            this.state.midiLoaded && (
+              <React.Fragment>
+                <div>
+                  <FormControl>
+                    <FormControlLabel
+                      label="MIDI Output"
+                      labelPlacement="start"
+                      control={
+                        <Select
+                          value={this.state.midiOutputID || ""}
+                          onChange={this.handleMIDIOutputChange}
+                          disabled={this.state.useAllOutputs}
+                        >
+                          {
+                            this.state.midiOutputs.map(
+                              (output) => (
+                                <MenuItem
+                                  key={output.id}
+                                  value={output.id}
+                                >{output.name}</MenuItem>
+                              )
+                            )
+                          }
+                        </Select>
+                      }
+                    />
+                  </FormControl>
+
+                  <FormControlLabel
+                    label="Use all outputs"
+                    control={
+                      <Checkbox
+                        checked={this.state.useAllOutputs}
+                        onChange={this.handleUseAllOutputsChange}
+                      />
+                    }
+                  />
+                </div>
+                <div
+                  className={this.props.classes.midiInputOptionsContainer}
                 >
-                  {fileName.replace(/\.\w*xml$/, "").replace(/^\.\//, "")}
-                </MenuItem>
+                  <FormControlLabel
+                    label="MIDI Input"
+                    labelPlacement="start"
+                    margin="none"
+                    control={
+                      <Select
+                        value={this.state.midiInputID || ""}
+                        onChange={this.handleMIDIInputChange}
+                        disabled={this.state.useAllInputs}
+                      >
+                        {
+                          this.state.midiInputs.map(
+                            (input) => (
+                              <MenuItem
+                                key={input.id}
+                                value={input.id}
+                              >{input.name}</MenuItem>
+                            )
+                          )
+                        }
+                      </Select>
+                    }
+                  />
+
+                  <FormGroup
+                    className={this.props.classes.inputCheckboxes}
+                  >
+                    <FormControlLabel
+                      label="Use all inputs"
+                      control={
+                        <Checkbox
+                          checked={this.state.useAllInputs}
+                          onChange={this.handleUseAllInputsChange}
+                        />
+                      }
+                    />
+                    <FormControlLabel
+                      label="Listen to inputs"
+                      control={
+                        <Checkbox
+                          checked={this.state.isListeningToInputs}
+                          onChange={this.handleListenToInputsChange}
+                        />
+                      }
+                    />
+                  </FormGroup>
+                </div>
+              </React.Fragment>
+            )
+          }
+          <div>
+            <FormControlLabel
+              label="Song"
+              labelPlacement="start"
+              control={
+                <Select
+                  value={this.state.xmlFile || ""}
+                  onChange={this.handleXMLFileChange}
+                >
+                  {
+                    Object.keys(xmlFiles).map(
+                      (fileName) => (
+                        <MenuItem
+                          key={fileName}
+                          value={fileName}
+                        >
+                          {fileName.replace(/\.\w*xml$/, "").replace(/^\.\//, "")}
+                        </MenuItem>
+                      )
+                    )
+                  }
+                </Select>
+
+              }
+            />
+            <Button
+              onClick={this.handleLoadXMLButtonClick}
+              disabled={!this.state.xmlFile}
+            >
+              Load
+            </Button>
+          </div>
+          {
+            !this.state.midiKeys.isEmpty() && (
+              <div>
+                Pressed keys: { this.state.midiKeys.join(", ") }
+              </div>
+            )
+          }
+          <div>
+            <TextField
+              label="Left hand keys:"
+              value={
+                (
+                  !this.state.currentLeftNote ||
+                  this.state.currentLeftNote instanceof RestItem
+                ) ?
+                  "" :
+                  this.state.currentLeftNote.notes.map(
+                    ({ name }) => name
+                  ).join(", ")
+              }
+              onChange={this.handleLeftHandKeysChange}
+            />
+            {
+              this.state.currentLeftNote !== null && (
+                <React.Fragment>
+                  <span>(measure {this.state.currentLeftNote.measure.number})</span>
+                  <span>Duration: {this.state.currentLeftNote.divisionOffset}</span>
+                </React.Fragment>
               )
-            )
-          }
-        </Select>
-        <Button
-          onClick={this.handleLoadXMLButtonClick}
-          disabled={!this.state.xmlFile}
-        >
-          Load
-        </Button>
-        <div>
-          <TextField
-            label="Left hand keys:"
-            value={this.state.leftHandKeys.join(",")}
-            onChange={this.handleLeftHandKeysChange}
-          />
+            }
+          </div>
+          <div>
+            <TextField
+              label="Right hand keys:"
+              value={
+                (
+                  !this.state.currentRightNote ||
+                  this.state.currentRightNote instanceof RestItem
+                ) ?
+                  "" :
+                  this.state.currentRightNote.notes.map(
+                    ({ name }) => name
+                  ).join(", ")
+              }
+              onChange={this.handleRightHandKeysChange}
+            />
+            {
+              this.state.currentRightNote !== null && (
+                <React.Fragment>
+                  <span>(measure {this.state.currentRightNote.measure.number})</span>
+                  <span>Duration: {this.state.currentRightNote.divisionOffset}</span>
+                </React.Fragment>
+              )
+            }
+          </div>
           {
-            this.state.leftHandMeasureNumber !== null && (
-              <span>(measure {this.state.leftHandMeasureNumber})</span>
-            )
-          }
-          {
-            this.state.rightHandMeasureNumber !== null && (
-              <span>Duration: {this.state.totalLeftHandDuration}</span>
+            this.state.xmlDocument && (
+              <span>
+                <IconButton
+                  onClick={this.handlePreviousNoteButtonClick}
+                  disabled={!canPlay}
+                >
+                  <SkipPreviousIcon />
+                </IconButton>
+                <IconButton
+                  onClick={this.handlePlayButtonClick}
+                  disabled={!canPlay}
+                >
+                  <PlayIcon />
+                </IconButton>
+                <IconButton
+                  onClick={this.handleNextNoteButtonClick}
+                  disabled={!canPlay}
+                >
+                  <SkipNextIcon />
+                </IconButton>
+              </span>
             )
           }
         </div>
-        <div>
-          <TextField
-            label="Right hand keys:"
-            value={this.state.rightHandKeys.join(",")}
-            onChange={this.handleRightHandKeysChange}
-          />
-          {
-            this.state.rightHandMeasureNumber !== null && (
-              <span>(measure {this.state.rightHandMeasureNumber})</span>
-            )
-          }
-          {
-            this.state.rightHandMeasureNumber !== null && (
-              <span>Duration: {this.state.totalRightHandDuration}</span>
-            )
-          }
-        </div>
-        {
-          this.state.xmlDocument && (
-            <span>
-              <IconButton
-                onClick={this.handlePlayButtonClick}
-                disabled={!this.state.midiLoaded || !this.state.midiOutputID}
-              >
-                <PlayIcon />
-              </IconButton>
-              <IconButton
-                onClick={this.handleNextNoteButtonClick}
-                disabled={!this.state.midiLoaded || !this.state.midiOutputID}
-              >
-                <SkipNextIcon />
-              </IconButton>
-            </span>
-          )
-        }
         <div
           className={this.props.classes.keyboardContainer}
         >
           <Keyboard
-            leftHandKeys={this.state.leftHandKeys}
-            rightHandKeys={this.state.rightHandKeys}
+            leftHandKeys={
+              Set(
+                this.state.currentLeftNote &&
+                this.state.currentLeftNote.notes &&
+                this.state.currentLeftNote.notes.map(
+                  ({ name }) => name
+                ) ||
+                undefined
+              )
+            }
+            rightHandKeys={
+              Set(
+                this.state.currentRightNote &&
+                this.state.currentRightNote.notes &&
+                this.state.currentRightNote.notes.map(
+                  ({ name }) => name
+                ) ||
+                undefined
+              )
+            }
             onKeyPress={this.handleKeyPress}
             onKeyRelease={this.handleKeyRelease}
           />
         </div>
+
+        <MIDIMessageLog
+          inputID={this.state.useAllInputs ? undefined : this.state.midiInputID}
+          isListening={this.state.isListeningToInputs}
+          classes={{
+            root: this.props.classes.midiMessagesContainer,
+          }}
+        />
       </div>
     );
   }

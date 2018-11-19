@@ -1,6 +1,7 @@
 "use strict";
 
-const express  = require("express");
+const path = require("path");
+const express = require("express");
 const cors = require("cors");
 const Config = require("../lib/config");
 const createAuthenticationRouter = require("./authentication");
@@ -29,6 +30,12 @@ router.use(
   createAuthenticationRouter("/auth"),
   raise404
 );
+
+router.route("/manifest.json")
+  .get(
+    cors(),
+    (req, res) => res.sendFile(path.resolve(Config.paths.app, "manifest.json"))
+  );
 
 exports = module.exports = {
   router,
