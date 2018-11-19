@@ -6,7 +6,7 @@ import classnames from "classnames";
 import { withStyles } from "@material-ui/core/styles";
 import DocumentEvents from "react-document-events";
 
-import { NoteNumberToName, NoteNameToNumber } from "./midi-note-converter";
+import { NoteNumberToName, NoteNameToNumber } from "../../utils/midi/midi-note-converter";
 
 const whiteKeyWidth = 2;
 

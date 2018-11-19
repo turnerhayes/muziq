@@ -1,6 +1,6 @@
 import NoteItem from "./NoteItem";
 import RestItem from "./RestItem";
-import { NoteNameToNumber } from "../Keyboard/midi-note-converter";
+import { NoteNameToNumber } from "./midi-note-converter";
 import RepeatItem from "./RepeatItem";
 
 const getChordNoteNodes = ({ xmlDocument, startNote }) => {

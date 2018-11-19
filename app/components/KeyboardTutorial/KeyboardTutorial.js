@@ -26,10 +26,10 @@ import {
   midiLoadPromise,
 } from "@app/utils/midi/midi-access";
 
-import RestItem from "./RestItem";
-import NoteItem from "./NoteItem";
-import CleffLines from "./CleffLines";
-import MIDIMessageLog from "./MIDIMessageLog";
+import RestItem from "../../utils/midi/RestItem";
+import NoteItem from "../../utils/midi/NoteItem";
+import CleffLines from "../../utils/midi/CleffLines";
+import MIDIMessageLog from "../MIDIMessageLog";
 
 
 const req = require.context("../../musicxml", true, /\.(\w*)xml$/);
