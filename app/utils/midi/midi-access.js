@@ -2,7 +2,7 @@
 
 import WebMIDI from "webmidi";
 
-import fakeInput from "@app/components/KeyboardTutorial/FakeMIDIInput";
+import fakeInput from "@app/utils/midi/FakeMIDIInput";
 
 /**
  * Forces the MIDI loading promise to resolve. This can be useful in some cases when

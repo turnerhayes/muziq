@@ -3,7 +3,7 @@
 import WebMIDI from "webmidi";
 
 // @todo move this out of Keyboard component directory
-import { NoteNumberToName, NoteNameToNumber } from "../Keyboard/midi-note-converter";
+import { NoteNumberToName, NoteNameToNumber } from "../../components/Keyboard/midi-note-converter";
 
 const fakeID = "FAKE_MIDI_INPUT";
 

@@ -18,23 +18,18 @@ import PlayIcon from "@material-ui/icons/PlayArrow";
 import SkipNextIcon from "@material-ui/icons/SkipNext";
 import SkipPreviousIcon from "@material-ui/icons/SkipPrevious";
 import WebMIDI from "webmidi";
-// import Player from "midi";
 
 import Keyboard from "@app/components/Keyboard";
 import partTimeXSLTString from "@app/parttime.xsl";
 import {
   accessWrapper,
   midiLoadPromise,
-} from "@app/utils/midi-access";
+} from "@app/utils/midi/midi-access";
 
 import RestItem from "./RestItem";
 import NoteItem from "./NoteItem";
 import CleffLines from "./CleffLines";
 import MIDIMessageLog from "./MIDIMessageLog";
-
-// console.log({
-//   Player,
-// });
 
 
 const req = require.context("../../musicxml", true, /\.(\w*)xml$/);
@@ -82,7 +77,6 @@ const styles = {
   },
 
   midiMessagesContainer: {
-    // overflowY: "auto",
     flex: 1,
   },
 };
@@ -347,15 +341,6 @@ class KeyboardTutorial extends React.PureComponent {
             [ "midi", "channel" ],
             DEFAULT_CHANNEL
           )
-        ).stopNote(
-          notes,
-          part.getIn(
-            [ "midi", "channel" ],
-            DEFAULT_CHANNEL
-          ),
-          {
-            time: "+6000",
-          }
         )
       );
     }
@@ -374,15 +359,6 @@ class KeyboardTutorial extends React.PureComponent {
             [ "midi", "channel" ],
             DEFAULT_CHANNEL
           )
-        ).stopNote(
-          notes,
-          part.getIn(
-            [ "midi", "channel" ],
-            DEFAULT_CHANNEL
-          ),
-          {
-            time: "+6000",
-          }
         )
       );
     }

@@ -13,7 +13,7 @@ import ClearIcon from "@material-ui/icons/Clear";
 import LastPageIcon from "@material-ui/icons/LastPage";
 import WebMIDI from "webmidi";
 
-import { midiLoadPromise, accessWrapper } from "@app/utils/midi-access";
+import { midiLoadPromise, accessWrapper } from "@app/utils/midi/midi-access";
 
 const styles = {
   root: {
