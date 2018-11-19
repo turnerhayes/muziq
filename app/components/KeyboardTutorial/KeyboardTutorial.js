@@ -26,8 +26,6 @@ import {
   midiLoadPromise,
 } from "@app/utils/midi/midi-access";
 
-import RestItem from "../../utils/midi/RestItem";
-import NoteItem from "../../utils/midi/NoteItem";
 import CleffLines from "../../utils/midi/CleffLines";
 import MIDIMessageLog from "../MIDIMessageLog";
 
@@ -327,7 +325,7 @@ class KeyboardTutorial extends React.PureComponent {
 
     const notesPlayed = {};
 
-    if (playLeft && this.state.currentLeftNote instanceof NoteItem) {
+    if (playLeft && !this.state.currentLeftNote.isRest) {
       const notes = this.state.currentLeftNote.notes.map(
         ({ name }) => name
       );
@@ -345,7 +343,7 @@ class KeyboardTutorial extends React.PureComponent {
       );
     }
 
-    if (playRight && this.state.currentRightNote instanceof NoteItem) {
+    if (playRight && !this.state.currentRightNote.isRest) {
       const notes = this.state.currentRightNote.notes.map(
         ({ name }) => name
       );
@@ -810,7 +808,7 @@ class KeyboardTutorial extends React.PureComponent {
               value={
                 (
                   !this.state.currentLeftNote ||
-                  this.state.currentLeftNote instanceof RestItem
+                  this.state.currentLeftNote.isRest
                 ) ?
                   "" :
                   this.state.currentLeftNote.notes.map(
@@ -834,7 +832,7 @@ class KeyboardTutorial extends React.PureComponent {
               value={
                 (
                   !this.state.currentRightNote ||
-                  this.state.currentRightNote instanceof RestItem
+                  this.state.currentRightNote.isRest
                 ) ?
                   "" :
                   this.state.currentRightNote.notes.map(

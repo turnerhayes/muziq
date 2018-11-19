@@ -1,9 +1,16 @@
-export default class NoteItem {
+
+/**
+ * Abstract class for NoteItem and RestItem
+ */
+export default class PlayableItem {
+  get isRest() {
+    throw new TypeError("isRest is not implemented");
+  }
+
   constructor({
     measure,
     divisionOffset,
     divisions,
-    notes,
     hand,
     previousItem,
     nextItem,
@@ -26,7 +33,7 @@ export default class NoteItem {
           set(measure) {
             if (measureObj) {
               // eslint-disable-next-line no-console
-              console.error(`NoteItem: measure should not be set more than once`);
+              console.error(`${this.constructor.name}: measure should not be set more than once`);
             }
 
             measureObj = measure;
@@ -51,12 +58,6 @@ export default class NoteItem {
           value: hand,
         },
 
-        notes: {
-          enumerable: true,
-          configurable: true,
-          value: notes,
-        },
-
         previousItem: {
           configurable: true,
           enumerable: true,
@@ -66,7 +67,7 @@ export default class NoteItem {
           set(item) {
             if (siblings.next) {
               // eslint-disable-next-line no-console
-              console.error(`NoteItem: previousItem should not be set more than once`);
+              console.error(`${this.constructor.name}: previousItem should not be set more than once`);
             }
 
             siblings.previous = item;
@@ -81,7 +82,7 @@ export default class NoteItem {
           set(item) {
             if (siblings.next) {
               // eslint-disable-next-line no-console
-              console.error(`NoteItem: nextItem should not be set more than once`);
+              console.error(`${this.constructor.name}: nextItem should not be set more than once`);
             }
 
             siblings.next = item;
