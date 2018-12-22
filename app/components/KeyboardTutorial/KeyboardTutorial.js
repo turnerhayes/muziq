@@ -14,12 +14,18 @@ import FormControlLabel from "@material-ui/core/FormControlLabel";
 import FormGroup from "@material-ui/core/FormGroup";
 import FormControl from "@material-ui/core/FormControl";
 import TextField from "@material-ui/core/TextField";
+import ExpansionPanel from "@material-ui/core/ExpansionPanel";
+import ExpansionPanelSummary from "@material-ui/core/ExpansionPanelSummary";
+import ExpansionPanelDetails from "@material-ui/core/ExpansionPanelDetails";
 import PlayIcon from "@material-ui/icons/PlayArrow";
 import SkipNextIcon from "@material-ui/icons/SkipNext";
 import SkipPreviousIcon from "@material-ui/icons/SkipPrevious";
+import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import WebMIDI from "webmidi";
+import { chord as detectChord } from "tonal-detect";
 
 import Keyboard from "@app/components/Keyboard";
+import KeyboardCalibrator from "@app/components/KeyboardCalibrator";
 import partTimeXSLTString from "@app/parttime.xsl";
 import {
   accessWrapper,
@@ -57,12 +63,25 @@ const styles = {
     flexDirection: "column",
   },
 
-  controlContainer: {
-    marginLeft: "2em",
+  keyboardCalibratorContainer: {
+    display: "flex",
+    alignItems: "center",
+  },
+
+  keyboardCalibrator: {
+    width: "100%",
+  },
+
+  chordName: {
+    marginLeft: "1em",
   },
 
   keyboardContainer: {
-    overflowX: "auto",
+    // overflowX: "auto",
+  },
+
+  midiPanel: {
+    flexDirection: "column",
   },
 
   midiInputOptionsContainer: {
@@ -102,6 +121,8 @@ class KeyboardTutorial extends React.PureComponent {
     midiMessages: [],
     isListeningToInputs: true,
     midiKeys: Set(),
+    keyRange: null,
+    isCalibrating: false,
   }
 
   constructor(...args) {
@@ -163,6 +184,10 @@ class KeyboardTutorial extends React.PureComponent {
   }
 
   bindInputListeners() {
+    if (this.state.isCalibrating) {
+      return;
+    }
+
     if (!this.state.midiInputs) {
       return;
     }
@@ -199,9 +224,16 @@ class KeyboardTutorial extends React.PureComponent {
     this.setMIDILoaded();
   }
   
-  componentDidUpdate() {
+  componentDidUpdate(prevProps, prevState) {
     if (!this.state.midiLoaded) {
       this.setMIDILoaded();
+    }
+
+    if (prevState.isCalibrating && !this.state.isCalibrating) {
+      this.bindInputListeners();
+    }
+    else if (!prevState.isCalibrating && this.state.isCalibrating) {
+      this.unbindInputListeners();
     }
   }
   
@@ -399,6 +431,10 @@ class KeyboardTutorial extends React.PureComponent {
 
     const input = accessWrapper.getInputById(this.state.midiInputID);
 
+    if (!input) {
+      return [];
+    }
+
     return [ input ];
   }
 
@@ -443,6 +479,10 @@ class KeyboardTutorial extends React.PureComponent {
   }
 
   checkPlayedNotes() {
+    if (this.state.currentLeftNote === null || this.state.currentRightNote === null) {
+      return;
+    }
+
     const leftHandKeys = Set(this.state.currentLeftNote.notes.map((note) => note.name));
     const rightHandKeys = Set(this.state.currentRightNote.notes.map((note) => note.name));
     if (this.state.midiKeys.equals(leftHandKeys.union(rightHandKeys))) {
@@ -587,22 +627,6 @@ class KeyboardTutorial extends React.PureComponent {
     );
   }
 
-  handleKeyPress = ({ noteName }) => {
-    this.setState((prevState) => (
-      {
-        rightHandKeys: prevState.rightHandKeys.add(noteName),
-      }
-    ));
-  }
-
-  handleKeyRelease = ({ noteName }) => {
-    this.setState((prevState) => (
-      {
-        rightHandKeys: prevState.rightHandKeys.remove(noteName),
-      }
-    ));
-  }
-
   reloadOutputsAndInputs() {
     this.setState({
       midiOutputs: Array.from(accessWrapper.outputs),
@@ -655,6 +679,33 @@ class KeyboardTutorial extends React.PureComponent {
     );
   }
 
+  handleCalibratorRangeSet = ({ range, inputID }) => {
+    this.setState(
+      (prevState) => {
+        const state = {
+          keyRange: range,
+        };
+
+        if (!prevState.midiInputID) {
+          state.midiInputID = inputID;
+          state.useAllInputs = false;
+        }
+
+        return state;
+      }
+    );
+  }
+
+  handleCalbratorButtonClick = () => {
+    this.setState(
+      (prevState) => {
+        return {
+          isCalibrating: !prevState.isCalibrating,
+        };
+      }
+    );
+  }
+
   render() {
     const canPlay = this.state.midiLoaded && (
       (
@@ -664,103 +715,158 @@ class KeyboardTutorial extends React.PureComponent {
       )
     );
 
+    let leftHandChordName = this.state.currentLeftNote && !this.state.currentLeftNote.isRest ?
+      detectChord(this.state.currentLeftNote.notes.map(({ name }) => name)) :
+      null;
+
+    if (leftHandChordName && leftHandChordName.length > 0) {
+      // found chord(s)--use the first one (arbitrary choice)
+      leftHandChordName = leftHandChordName[0];
+    }
+    else {
+      leftHandChordName = null;
+    }
+    
+    let rightHandChordName = this.state.currentRightNote && !this.state.currentRightNote.isRest ?
+      detectChord(this.state.currentRightNote.notes.map(({ name }) => name)) :
+      null;
+    
+    if (rightHandChordName && rightHandChordName.length > 0) {
+      rightHandChordName = rightHandChordName[0];
+    }
+    else {
+      leftHandChordName = null;
+    }
+
     return (
       <div
         className={this.props.classes.root}
       >
-        <div
-          className={this.props.classes.controlContainer}
-        >
+        <div>
+          <ExpansionPanel
+            expanded={this.state.isCalibrating}
+            onChange={this.handleCalbratorButtonClick}
+          >
+            <ExpansionPanelSummary
+              expandIcon={<ExpandMoreIcon />}
+            >
+              Keyboard Calibration
+            </ExpansionPanelSummary>
+            <ExpansionPanelDetails
+              classes={{
+                root: this.props.classes.keyboardCalibratorContainer,
+              }}
+            >
+              <KeyboardCalibrator
+                classes={{
+                  root: this.props.classes.keyboardCalibrator,
+                }}
+                onRangeSet={this.handleCalibratorRangeSet}
+                disabled={!this.state.isCalibrating}
+              />
+            </ExpansionPanelDetails>
+          </ExpansionPanel>
           {
             this.state.midiLoaded && (
-              <React.Fragment>
-                <div>
-                  <FormControl>
+              <ExpansionPanel>
+                <ExpansionPanelSummary
+                  expandIcon={<ExpandMoreIcon />}
+                >
+                  MIDI Settings
+                </ExpansionPanelSummary>
+                <ExpansionPanelDetails
+                  classes={{
+                    root: this.props.classes.midiPanel,
+                  }}
+                >
+                  <div>
+                    <FormControl>
+                      <FormControlLabel
+                        label="MIDI Output"
+                        labelPlacement="start"
+                        control={
+                          <Select
+                            value={this.state.midiOutputID || ""}
+                            onChange={this.handleMIDIOutputChange}
+                            disabled={this.state.useAllOutputs}
+                          >
+                            {
+                              this.state.midiOutputs.map(
+                                (output) => (
+                                  <MenuItem
+                                    key={output.id}
+                                    value={output.id}
+                                  >{output.name}</MenuItem>
+                                )
+                              )
+                            }
+                          </Select>
+                        }
+                      />
+                    </FormControl>
+
                     <FormControlLabel
-                      label="MIDI Output"
+                      label="Use all outputs"
+                      control={
+                        <Checkbox
+                          checked={this.state.useAllOutputs}
+                          onChange={this.handleUseAllOutputsChange}
+                        />
+                      }
+                    />
+                  </div>
+                  <div
+                    className={this.props.classes.midiInputOptionsContainer}
+                  >
+                    <FormControlLabel
+                      label="MIDI Input"
                       labelPlacement="start"
+                      margin="none"
                       control={
                         <Select
-                          value={this.state.midiOutputID || ""}
-                          onChange={this.handleMIDIOutputChange}
-                          disabled={this.state.useAllOutputs}
+                          value={this.state.midiInputID || ""}
+                          onChange={this.handleMIDIInputChange}
+                          disabled={this.state.useAllInputs}
                         >
                           {
-                            this.state.midiOutputs.map(
-                              (output) => (
+                            this.state.midiInputs.map(
+                              (input) => (
                                 <MenuItem
-                                  key={output.id}
-                                  value={output.id}
-                                >{output.name}</MenuItem>
+                                  key={input.id}
+                                  value={input.id}
+                                >{input.name}</MenuItem>
                               )
                             )
                           }
                         </Select>
                       }
                     />
-                  </FormControl>
 
-                  <FormControlLabel
-                    label="Use all outputs"
-                    control={
-                      <Checkbox
-                        checked={this.state.useAllOutputs}
-                        onChange={this.handleUseAllOutputsChange}
-                      />
-                    }
-                  />
-                </div>
-                <div
-                  className={this.props.classes.midiInputOptionsContainer}
-                >
-                  <FormControlLabel
-                    label="MIDI Input"
-                    labelPlacement="start"
-                    margin="none"
-                    control={
-                      <Select
-                        value={this.state.midiInputID || ""}
-                        onChange={this.handleMIDIInputChange}
-                        disabled={this.state.useAllInputs}
-                      >
-                        {
-                          this.state.midiInputs.map(
-                            (input) => (
-                              <MenuItem
-                                key={input.id}
-                                value={input.id}
-                              >{input.name}</MenuItem>
-                            )
-                          )
+                    <FormGroup
+                      className={this.props.classes.inputCheckboxes}
+                    >
+                      <FormControlLabel
+                        label="Use all inputs"
+                        control={
+                          <Checkbox
+                            checked={this.state.useAllInputs}
+                            onChange={this.handleUseAllInputsChange}
+                          />
                         }
-                      </Select>
-                    }
-                  />
-
-                  <FormGroup
-                    className={this.props.classes.inputCheckboxes}
-                  >
-                    <FormControlLabel
-                      label="Use all inputs"
-                      control={
-                        <Checkbox
-                          checked={this.state.useAllInputs}
-                          onChange={this.handleUseAllInputsChange}
-                        />
-                      }
-                    />
-                    <FormControlLabel
-                      label="Listen to inputs"
-                      control={
-                        <Checkbox
-                          checked={this.state.isListeningToInputs}
-                          onChange={this.handleListenToInputsChange}
-                        />
-                      }
-                    />
-                  </FormGroup>
-                </div>
-              </React.Fragment>
+                      />
+                      <FormControlLabel
+                        label="Listen to inputs"
+                        control={
+                          <Checkbox
+                            checked={this.state.isListeningToInputs}
+                            onChange={this.handleListenToInputsChange}
+                          />
+                        }
+                      />
+                    </FormGroup>
+                  </div>
+                </ExpansionPanelDetails>
+              </ExpansionPanel>
             )
           }
           <div>
@@ -825,6 +931,15 @@ class KeyboardTutorial extends React.PureComponent {
                 </React.Fragment>
               )
             }
+            {
+              leftHandChordName && (
+                <span
+                  className={this.props.classes.chordName}
+                >
+                  Chord name: {leftHandChordName}
+                </span>
+              )
+            }
           </div>
           <div>
             <TextField
@@ -847,6 +962,15 @@ class KeyboardTutorial extends React.PureComponent {
                   <span>(measure {this.state.currentRightNote.measure.number})</span>
                   <span>Duration: {this.state.currentRightNote.divisionOffset}</span>
                 </React.Fragment>
+              )
+            }
+            {
+              rightHandChordName && (
+                <span
+                  className={this.props.classes.chordName}
+                >
+                  Chord name: {rightHandChordName}
+                </span>
               )
             }
           </div>
@@ -899,8 +1023,8 @@ class KeyboardTutorial extends React.PureComponent {
                 undefined
               )
             }
-            onKeyPress={this.handleKeyPress}
-            onKeyRelease={this.handleKeyRelease}
+            lowestKeyNumber={this.state.keyRange && this.state.keyRange[0]}
+            highestKeyNumber={this.state.keyRange && this.state.keyRange[1]}
           />
         </div>
 

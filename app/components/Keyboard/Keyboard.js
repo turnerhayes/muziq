@@ -6,15 +6,23 @@ import classnames from "classnames";
 import { withStyles } from "@material-ui/core/styles";
 import DocumentEvents from "react-document-events";
 
-import { NoteNumberToName, NoteNameToNumber } from "../../utils/midi/midi-note-converter";
+import { NoteNumberToName, NoteNameToNumber } from "@app/utils/midi/midi-note-converter";
 
-const whiteKeyWidth = 2;
+const whiteKeyWidth = 3;
+
+// eslint-disable-next-line no-magic-numbers
+const whiteKeyHeight = whiteKeyWidth * 2;
 
 // eslint-disable-next-line no-magic-numbers
 const blackKeyWidth = whiteKeyWidth / 2;
 
+// eslint-disable-next-line no-magic-numbers
+const blackKeyHeight = whiteKeyHeight * 0.75;
+
 const styles = {
-  root: {},
+  root: {
+    overflowY: "auto",
+  },
   
   keyboard: {
     listStyle: "none",
@@ -34,7 +42,7 @@ const styles = {
     border: "1px solid black",
     width: `${whiteKeyWidth}em`,
     minWidth: `${whiteKeyWidth}em`,
-    height: "4em",
+    height: `${whiteKeyHeight}em`,
     cursor: "pointer",
     boxShadow: "0px 4px 2px 0px",
     borderRadius: "0 0 3px 3px",
@@ -70,9 +78,9 @@ const styles = {
   blackKey: {
     width: `${blackKeyWidth}em`,
     minWidth: `${blackKeyWidth}em`,
-    height: "2.5em",
+    height: `${(blackKeyHeight).toFixed(2)}em`,
     backgroundColor: "black",
-    marginLeft: "-0.5em",
+    marginLeft: `-${(blackKeyWidth / 2).toFixed(2)}em`,
     zIndex: 1,
     boxShadow: "0px 4px 9px 0px",
 
@@ -81,7 +89,7 @@ const styles = {
     },
 
     "& + $key": {
-      marginLeft: "-0.5em",
+      marginLeft: `-${(blackKeyWidth / 2).toFixed(2)}em`,
     },
   },
 
@@ -107,10 +115,12 @@ const steps = "ABCDEFG";
 class Keyboard extends React.PureComponent {
   static propTypes = {
     classes: PropTypes.object.isRequired,
-    keyCount: PropTypes.number.isRequired,
+    keyCount: PropTypes.number,
     leftHandKeys: ImmutablePropTypes.iterable.isRequired,
     rightHandKeys: ImmutablePropTypes.iterable.isRequired,
     showLabels: PropTypes.bool.isRequired,
+    lowestKeyNumber: PropTypes.number,
+    highestKeyNumber: PropTypes.number,
     className: PropTypes.string,
     onKeyPress: PropTypes.func,
     onKeyRelease: PropTypes.func,
@@ -127,12 +137,79 @@ class Keyboard extends React.PureComponent {
     isKeyPressed: false,
   }
 
+  lowestActiveNoteRef = React.createRef()
+
+  rootRef = React.createRef()
+
+  componentDidMount() {
+    const lowestKey = this.getLowestKey(this.props.leftHandKeys, this.props.rightHandKeys);
+
+    if (lowestKey) {
+      this.scrollToLowestActiveNote();
+    }
+  }
+
+  componentDidUpdate(prevProps) {
+    const prevLowestKey = this.getLowestKey(prevProps.leftHandKeys, prevProps.rightHandKeys);
+    const lowestKey = this.getLowestKey(this.props.leftHandKeys, this.props.rightHandKeys);
+    
+    if (lowestKey && prevLowestKey !== lowestKey) {
+      this.scrollToLowestActiveNote();
+    }
+  }
+
+  getLowestKey(leftHandKeys, rightHandKeys) {
+    // @todo: sort leftHand/rightHandKeys props
+    let lowestKey = leftHandKeys.first();
+
+    if (!lowestKey) {
+      lowestKey = rightHandKeys.first();
+    }
+
+    return lowestKey;
+  }
+
   getKeyProps(el) {
     return {
       key: el.dataset.key,
       noteName: el.dataset.noteName,
       equivalentNotes: el.dataset.equivalentNotes,
     };
+  }
+
+  getKeyRange() {
+    const { lowestKeyNumber, highestKeyNumber, keyCount } = this.props;
+
+    if (lowestKeyNumber !== null && lowestKeyNumber !== undefined) {
+      if (highestKeyNumber !== null && highestKeyNumber !== undefined) {
+        return [
+          lowestKeyNumber,
+          highestKeyNumber,
+        ];
+      }
+
+      return [
+        lowestKeyNumber,
+        lowestKeyNumber + keyCount,
+      ];
+    }
+
+    if (highestKeyNumber !== null && highestKeyNumber !== undefined) {
+      return [
+        highestKeyNumber - keyCount,
+        highestKeyNumber,
+      ];
+    }
+
+    const middleC = NoteNameToNumber("C4");
+
+    // eslint-disable-next-line no-magic-numbers
+    const half = Math.floor(keyCount / 2);
+
+    return [
+      middleC - half,
+      middleC + half - 1,
+    ];
   }
 
   handleMouseDown = ({ target }) => {
@@ -155,17 +232,20 @@ class Keyboard extends React.PureComponent {
     });
   }
 
+  scrollToLowestActiveNote() {
+    if (!this.lowestActiveNoteRef.current) {
+      return;
+    }
+
+    this.rootRef.current.scrollLeft = this.lowestActiveNoteRef.current.offsetLeft;
+  }
+
   render() {
     const keys = [];
 
-    const middleC = NoteNameToNumber("C4");
-
-    // eslint-disable-next-line no-magic-numbers
-    const half = Math.floor(this.props.keyCount / 2);
-
-    const firstNote = middleC - half;
+    const keyRange = this.getKeyRange();
     
-    for (let key = firstNote; key < middleC + half; key++) {
+    for (let key = keyRange[0]; key <= keyRange[1]; key++) {
       
       /*
       A keyboard can be viewed as multiple blocks like this (W = white key, b = black key):
@@ -192,7 +272,7 @@ class Keyboard extends React.PureComponent {
         isBlack = true;
 
         // Don't put a black key at the end
-        if (key === middleC + half - 1) {
+        if (key === keyRange[1]) {
           continue;
         }
       }
@@ -281,6 +361,11 @@ class Keyboard extends React.PureComponent {
               [this.props.classes.activeKey]: isActive,
             }
           )}
+          ref={
+            key === keyRange[0] ?
+              this.lowestActiveNoteRef :
+              undefined
+          }
         >
           {
             this.props.showLabels && (
@@ -299,17 +384,20 @@ class Keyboard extends React.PureComponent {
         className={classnames(
           this.props.classes.root,
           this.props.className,
-          this.props.showLabels ?
-            this.props.classes.withLabels :
-            undefined
         )}
+        ref={this.rootRef}
       >
         <DocumentEvents
           enabled={this.state.isKeyPressed}
           onMouseUp={this.handleMouseUp}
         />
         <ul
-          className={this.props.classes.keyboard}
+          className={classnames(
+            this.props.classes.keyboard,
+            {
+              [this.props.classes.withLabels]: this.props.showLabels,
+            }
+          )}
         >
           {keys}
         </ul>

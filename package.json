@@ -119,6 +119,7 @@
     "shortid": "^2.2.13",
     "spdy": "^3.4.7",
     "styled-components": "^3.1.6",
+    "tonal-detect": "^2.1.2",
     "warning": "3.0.0",
     "webmidi": "^2.2.0",
     "webpack-bundle-analyzer": "^2.11.1",

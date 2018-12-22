@@ -11,6 +11,8 @@ import IconButton from "@material-ui/core/IconButton";
 import RootRef from "@material-ui/core/RootRef";
 import ClearIcon from "@material-ui/icons/Clear";
 import LastPageIcon from "@material-ui/icons/LastPage";
+import PauseIcon from "@material-ui/icons/Pause";
+import PlayArrowIcon from "@material-ui/icons/PlayArrow";
 import WebMIDI from "webmidi";
 
 import { midiLoadPromise, accessWrapper } from "@app/utils/midi/midi-access";
@@ -63,6 +65,7 @@ class MIDIMessageLog extends React.PureComponent {
 
   static defaultProps = {
     isListening: true,
+    isPaused: false,
   }
 
   state = {
@@ -201,6 +204,14 @@ class MIDIMessageLog extends React.PureComponent {
     );
   }
 
+  updateListeners() {
+    this.unbindInputListeners();
+
+    if (!this.state.isPaused && this.props.isListening) {
+      this.bindInputListeners();
+    }
+  }
+
   handleDeviceConnected = () => {
     this.reloadInputs();
   }
@@ -219,6 +230,15 @@ class MIDIMessageLog extends React.PureComponent {
     this.scrollListToBottom();
   }
 
+  handlePauseButtonClick = () => {
+    this.setState(
+      (prevState) => ({
+        isPaused: !prevState.isPaused,
+      }),
+      () => this.updateListeners()
+    );
+  }
+
   render() {
     return (
       <Card
@@ -228,6 +248,20 @@ class MIDIMessageLog extends React.PureComponent {
           title="MIDI Message log"
           action={
             <div>
+              <IconButton
+                onClick={this.handlePauseButtonClick}
+                title={`${this.state.isPaused ? "Start" : "Stop"} listening`}
+              >
+                {
+                  this.state.isPaused ?
+                    (
+                      <PlayArrowIcon />
+                    ) : (
+                      <PauseIcon />
+                    )
+                }
+              </IconButton>
+
               <IconButton
                 onClick={this.handleScrollToEndButtonClick}
                 title="Scroll to end"

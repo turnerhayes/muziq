@@ -31,6 +31,16 @@ const noteNodeToName = (node) => {
   return `${step.textContent}${octave.textContent}`;
 };
 
+/**
+ * Represents a measure of the music.
+ * 
+ * @property {number} number - the measure number (1-based)
+ * @property {number} divisionOffset - the number of divisions before this measure starts
+ * @property {PlayableItem[]} rightHandItems - the note and rest items for the right hand clef
+ * @property {PlayableItem[]} leftHandItems - the note and rest items for the left hand clef
+ * @property {RepeatItem} [repeat] - the repeat item describing this measure's repeat behavior
+ *  (if applicable)
+ */
 class Measure {
   constructor({ number, divisionOffset, rightHandItems, leftHandItems, repeat }) {
     const items = {
@@ -71,6 +81,14 @@ class Measure {
   }
 }
 
+/**
+ * Describes up to two cleff lines for the piano (left hand and right hand)
+ * 
+ * @property {string} partID - the ID of the part that defines the piano part
+ * @property {Measure[]} measures - the measures in the music
+ * @property {Object<number, PlayableItem>} divisionOffsets - a mapping of division count
+ *  before a playable item (note or rest) to the item
+ */
 export default class CleffLines {
   constructor({ partID, measures, divisionOffsets }) {
     Object.defineProperties(
@@ -97,6 +115,14 @@ export default class CleffLines {
     );
   }
 
+  /**
+   * Creates a CleffLines instance by parsing an XML document derived from MusicXML
+   * 
+   * @param {Document} xmlDocument - the XML document object representing the MusicXML
+   * @param {string} partID - the ID of the part to parse as the piano part 
+   * 
+   * @returns {CleffLines} the parsed CleffLines instance
+   */
   static fromDocument({ xmlDocument, partID }) {
     let cumulativeDivisionsAtMeasureStart = 0;
 
@@ -256,6 +282,16 @@ export default class CleffLines {
     });
   }
 
+  /**
+   * Gets the next playable items after the current items
+   * 
+   * @param {PlayableItem} currentLeftNote - the playable item for the left hand to start from
+   * @param {PlayableItem} currentRightNote - the playable item for the right hand to start from
+   * @param {number} [repeatCount] - the number of repeats completed (used to determine whether
+   *  or not to honor any repeats found)
+   * 
+   * @returns {{leftHand: PlayableItem, rightHand: PlayableItem}} the following playable items
+   */
   nextNotes({ currentLeftNote, currentRightNote, repeatCount = 0 }) {
     const nextLeftNote = currentLeftNote ?
       currentLeftNote.nextItem :
@@ -337,6 +373,14 @@ export default class CleffLines {
     return next;
   }
 
+  /**
+   * Gets the previous playable items before the current items
+   * 
+   * @param {PlayableItem} currentLeftNote - the playable item for the left hand to start from
+   * @param {PlayableItem} currentRightNote - the playable item for the right hand to start from
+   * 
+   * @returns {{leftHand: PlayableItem, rightHand: PlayableItem}} the previous playable items
+   */
   previousNotes({ currentLeftNote, currentRightNote }) {
     const previousLeftNote = currentLeftNote ?
       currentLeftNote.previousItem :
