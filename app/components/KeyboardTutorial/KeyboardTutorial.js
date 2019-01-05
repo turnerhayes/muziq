@@ -26,6 +26,7 @@ import { chord as detectChord } from "tonal-detect";
 
 import Keyboard from "@app/components/Keyboard";
 import KeyboardCalibrator from "@app/components/KeyboardCalibrator";
+import FakeMIDIKeyboard from "@app/components/FakeMIDIKeyboard";
 import partTimeXSLTString from "@app/parttime.xsl";
 import {
   accessWrapper,
@@ -34,6 +35,7 @@ import {
 
 import CleffLines from "../../utils/midi/CleffLines";
 import MIDIMessageLog from "../MIDIMessageLog";
+import FakeMIDIInput from "@app/utils/midi/FakeMIDIInput";
 
 
 const req = require.context("../../musicxml", true, /\.(\w*)xml$/);
@@ -735,8 +737,24 @@ class KeyboardTutorial extends React.PureComponent {
       rightHandChordName = rightHandChordName[0];
     }
     else {
-      leftHandChordName = null;
+      rightHandChordName = null;
     }
+
+    const activeKeys = Set(
+      this.state.currentLeftNote &&
+      this.state.currentLeftNote.notes &&
+      this.state.currentLeftNote.notes.map(
+        ({ name }) => name
+      ) ||
+      undefined
+    ).concat(
+      this.state.currentRightNote &&
+      this.state.currentRightNote.notes &&
+      this.state.currentRightNote.notes.map(
+        ({ name }) => name
+      ) ||
+      undefined
+    );
 
     return (
       <div
@@ -924,14 +942,6 @@ class KeyboardTutorial extends React.PureComponent {
               onChange={this.handleLeftHandKeysChange}
             />
             {
-              this.state.currentLeftNote !== null && (
-                <React.Fragment>
-                  <span>(measure {this.state.currentLeftNote.measure.number})</span>
-                  <span>Duration: {this.state.currentLeftNote.divisionOffset}</span>
-                </React.Fragment>
-              )
-            }
-            {
               leftHandChordName && (
                 <span
                   className={this.props.classes.chordName}
@@ -956,14 +966,6 @@ class KeyboardTutorial extends React.PureComponent {
               }
               onChange={this.handleRightHandKeysChange}
             />
-            {
-              this.state.currentRightNote !== null && (
-                <React.Fragment>
-                  <span>(measure {this.state.currentRightNote.measure.number})</span>
-                  <span>Duration: {this.state.currentRightNote.divisionOffset}</span>
-                </React.Fragment>
-              )
-            }
             {
               rightHandChordName && (
                 <span
@@ -1003,30 +1005,20 @@ class KeyboardTutorial extends React.PureComponent {
           className={this.props.classes.keyboardContainer}
         >
           <Keyboard
-            leftHandKeys={
-              Set(
-                this.state.currentLeftNote &&
-                this.state.currentLeftNote.notes &&
-                this.state.currentLeftNote.notes.map(
-                  ({ name }) => name
-                ) ||
-                undefined
-              )
-            }
-            rightHandKeys={
-              Set(
-                this.state.currentRightNote &&
-                this.state.currentRightNote.notes &&
-                this.state.currentRightNote.notes.map(
-                  ({ name }) => name
-                ) ||
-                undefined
-              )
-            }
+            activeKeys={activeKeys}
             lowestKeyNumber={this.state.keyRange && this.state.keyRange[0]}
             highestKeyNumber={this.state.keyRange && this.state.keyRange[1]}
           />
         </div>
+
+        {
+          this.state.midiInputID === FakeMIDIInput.id ?
+            (
+              <FakeMIDIKeyboard
+              />
+            ) :
+            null
+        }
 
         <MIDIMessageLog
           inputID={this.state.useAllInputs ? undefined : this.state.midiInputID}

@@ -123,6 +123,13 @@ class TopNavigation extends React.PureComponent {
           
           <Button
             component={Link}
+            to="/kb"
+          >
+            KB Tutorial
+          </Button>
+          
+          <Button
+            component={Link}
             to="/sheetmusic"
           >
             {this.formatMessage(messages.links.sheetmusic)}

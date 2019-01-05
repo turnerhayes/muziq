@@ -2,6 +2,7 @@ import NoteItem from "./NoteItem";
 import RestItem from "./RestItem";
 import { NoteNameToNumber } from "../midi-note-converter";
 import RepeatItem from "./RepeatItem";
+import isPiano from "../is-piano";
 
 const getChordNoteNodes = ({ xmlDocument, startNote }) => {
   const staffNumber = Number(startNote.querySelector("staff").textContent);
@@ -119,11 +120,10 @@ export default class CleffLines {
    * Creates a CleffLines instance by parsing an XML document derived from MusicXML
    * 
    * @param {Document} xmlDocument - the XML document object representing the MusicXML
-   * @param {string} partID - the ID of the part to parse as the piano part 
    * 
    * @returns {CleffLines} the parsed CleffLines instance
    */
-  static fromDocument({ xmlDocument, partID }) {
+  static fromDocument({ xmlDocument }) {
     let cumulativeDivisionsAtMeasureStart = 0;
 
     const measures = [];
@@ -134,6 +134,34 @@ export default class CleffLines {
       left: null,
       right: null,
     };
+
+    let partID;
+
+    const pianoNameIDs = [];
+
+    Array.from(xmlDocument.querySelectorAll("score-part")).forEach(
+      (partNode) => {
+        const currentPartID = partNode.getAttribute("id");
+        const midiNumberNode = partNode.querySelector("midi-instrument midi-program");
+
+        if (midiNumberNode) {
+          const midiNumber = Number(midiNumberNode.textContent);
+
+          if (isPiano(midiNumber)) {
+            partID = currentPartID;
+            // Exit loop
+            return false;
+          }
+        }
+        else if (/piano/i.test(partNode.querySelector("part-name"))) {
+          pianoNameIDs.push(partID);
+        }
+      }
+    );
+
+    if (!partID) {
+      partID = pianoNameIDs[0];
+    }
 
     const repeats = [];
 
@@ -292,7 +320,7 @@ export default class CleffLines {
    * 
    * @returns {{leftHand: PlayableItem, rightHand: PlayableItem}} the following playable items
    */
-  nextNotes({ currentLeftNote, currentRightNote, repeatCount = 0 }) {
+  nextNotes({ currentLeftNote, currentRightNote, repeatCount = 0 } = {}) {
     const nextLeftNote = currentLeftNote ?
       currentLeftNote.nextItem :
       this.measures[1].items.leftHand[0];
@@ -381,7 +409,7 @@ export default class CleffLines {
    * 
    * @returns {{leftHand: PlayableItem, rightHand: PlayableItem}} the previous playable items
    */
-  previousNotes({ currentLeftNote, currentRightNote }) {
+  previousNotes({ currentLeftNote, currentRightNote } = {}) {
     const previousLeftNote = currentLeftNote ?
       currentLeftNote.previousItem :
       this.measures[1].items.leftHand[0];

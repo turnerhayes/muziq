@@ -10,6 +10,7 @@ import SheetMusicControl            from "@app/components/SheetMusicControl";
 import MIDIRecorder                 from "@app/components/MIDIRecorder";
 import KeyboardTutorial             from "@app/components/KeyboardTutorial";
 import TopNavigation                from "@app/containers/TopNavigation";
+import KBTutorial                   from "@app/components/KBTutorial";
 
 const styles = {
   mainContainer: {
@@ -84,6 +85,7 @@ class App extends React.Component { // Do not use PureComponent; messes with rea
               {/* <Route exact path="/generator" component={MusicXMLGenerator} /> */}
               <Route exact path="/recorder" component={MIDIRecorder} />
               <Route exact path="/keyboard" component={KeyboardTutorial} />
+              <Route exact path="/kb" component={KBTutorial} />
               <Route component={NotFoundPage} />
             </Switch>
           </article>

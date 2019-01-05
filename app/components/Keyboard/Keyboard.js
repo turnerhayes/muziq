@@ -47,32 +47,11 @@ const styles = {
     boxShadow: "0px 4px 2px 0px",
     borderRadius: "0 0 3px 3px",
     backgroundColor: "white",
-
-    "&[data-hand='left']": {
-      color: "blue",
-    },
-
-    "&[data-hand='right']": {
-      color: "green",
-    },
-    
-    "&:active": {
-
-      "& $keyLabel": {
-        opacity: 1,
-        transition: "none",
-      },
-    },
   },
 
   activeKey: {
     transform: "rotateX(15deg)",
     transformOrigin: "center top",
-    
-    "& $keyLabel": {
-      opacity: 1,
-      transition: "none",
-    },
   },
   
   blackKey: {
@@ -95,8 +74,6 @@ const styles = {
 
   keyLabel: {
     display: "inline-block",
-    opacity: 0,
-    transition: "opacity 0s 0.5s linear",
     marginTop: "-1.6em",
 
     "&::after": {
@@ -116,21 +93,23 @@ class Keyboard extends React.PureComponent {
   static propTypes = {
     classes: PropTypes.object.isRequired,
     keyCount: PropTypes.number,
-    leftHandKeys: ImmutablePropTypes.iterable.isRequired,
-    rightHandKeys: ImmutablePropTypes.iterable.isRequired,
+    activeKeys: ImmutablePropTypes.iterable.isRequired,
+    scrollToLowestKeyOnChange: PropTypes.bool.isRequired,
     showLabels: PropTypes.bool.isRequired,
     lowestKeyNumber: PropTypes.number,
     highestKeyNumber: PropTypes.number,
     className: PropTypes.string,
     onKeyPress: PropTypes.func,
     onKeyRelease: PropTypes.func,
+    getKeyClass: PropTypes.func,
+    getShouldShowLabel: PropTypes.func,
   }
   
   static defaultProps = {
     keyCount: 88,
-    leftHandKeys: Set(),
-    rightHandKeys: Set(),
+    activeKeys: Set(),
     showLabels: true,
+    scrollToLowestKeyOnChange: false,
   }
 
   state = {
@@ -142,36 +121,38 @@ class Keyboard extends React.PureComponent {
   rootRef = React.createRef()
 
   componentDidMount() {
-    const lowestKey = this.getLowestKey(this.props.leftHandKeys, this.props.rightHandKeys);
-
-    if (lowestKey) {
-      this.scrollToLowestActiveNote();
+    if (this.props.scrollToLowestKeyOnChange) {
+      const lowestKey = this.getLowestActiveKey(this.props.activeKeys);
+  
+      if (lowestKey) {
+        this.scrollToLowestActiveNote();
+      }
     }
   }
 
   componentDidUpdate(prevProps) {
-    const prevLowestKey = this.getLowestKey(prevProps.leftHandKeys, prevProps.rightHandKeys);
-    const lowestKey = this.getLowestKey(this.props.leftHandKeys, this.props.rightHandKeys);
-    
-    if (lowestKey && prevLowestKey !== lowestKey) {
-      this.scrollToLowestActiveNote();
+    if (this.props.scrollToLowestKeyOnChange) {
+      const prevLowestKey = this.getLowestActiveKey(prevProps.activeKeys);
+      const lowestKey = this.getLowestActiveKey(this.props.activeKeys);
+      
+      if (lowestKey && prevLowestKey !== lowestKey) {
+        this.scrollToLowestActiveNote();
+      }
     }
   }
 
-  getLowestKey(leftHandKeys, rightHandKeys) {
-    // @todo: sort leftHand/rightHandKeys props
-    let lowestKey = leftHandKeys.first();
-
-    if (!lowestKey) {
-      lowestKey = rightHandKeys.first();
-    }
+  getLowestActiveKey(
+    activeKeys = this.props.activeKeys,
+  ) {
+    // @todo: sort activeKeys prop
+    let lowestKey = activeKeys.first();
 
     return lowestKey;
   }
 
   getKeyProps(el) {
     return {
-      key: el.dataset.key,
+      key: Number(el.dataset.keyNumber),
       noteName: el.dataset.noteName,
       equivalentNotes: el.dataset.equivalentNotes,
     };
@@ -212,9 +193,9 @@ class Keyboard extends React.PureComponent {
     ];
   }
 
-  handleMouseDown = ({ target }) => {
+  handleMouseDown = ({ currentTarget }) => {
     this.props.onKeyPress && this.props.onKeyPress(
-      this.getKeyProps(target)
+      this.getKeyProps(currentTarget)
     );
 
     this.setState({
@@ -222,9 +203,9 @@ class Keyboard extends React.PureComponent {
     });
   }
 
-  handleMouseUp = ({ target }) => {
+  handleMouseUp = ({ currentTarget }) => {
     this.props.onKeyRelease && this.props.onKeyRelease(
-      this.getKeyProps(target)
+      this.getKeyProps(currentTarget)
     );
 
     this.setState({
@@ -314,8 +295,7 @@ class Keyboard extends React.PureComponent {
       
       let noteName = `${note.step}${accidental}${note.octave}`;
 
-      let isActive = this.props.leftHandKeys.includes(noteName) ||
-        this.props.rightHandKeys.includes(noteName);
+      let isActive = this.props.activeKeys.includes(noteName);
 
       let equivalentNotes;
 
@@ -326,25 +306,34 @@ class Keyboard extends React.PureComponent {
           equivalentNote.replace("♯", "#").replace("♭", "b"),
         ];
 
-        isActive = !Set(this.props.leftHandKeys).union(this.props.rightHandKeys)
+        isActive = !this.props.activeKeys
           .intersect(Set(equivalentNotes))
           .isEmpty();
       }
 
+      let displayNoteName = noteName;
+
       if (equivalentNote) {
-        noteName = `${noteName}/${equivalentNote}`;
+        displayNoteName = `${noteName}/${equivalentNote}`;
       }
 
-      let hand;
+      const keyProps = {
+        key,
+        noteName,
+        equivalentNotes,
+        isBlack,
+      };
 
-      if (isActive) {
-        if (this.props.leftHandKeys.includes(noteName)) {
-          hand = "left";
-        }
-        else {
-          hand = "right";
-        }
-      }
+      const className = classnames(
+        this.props.classes.key,
+        {
+          [this.props.classes.blackKey]: isBlack,
+          [this.props.classes.activeKey]: isActive,
+        },
+        this.props.getKeyClass && this.props.getKeyClass(keyProps)
+      );
+
+      const shouldShowLabel = this.props.getShouldShowLabel && this.props.getShouldShowLabel(keyProps);
 
       keys.push(
         <li
@@ -352,26 +341,19 @@ class Keyboard extends React.PureComponent {
           data-key-number={key}
           data-note-name={noteName}
           data-equivalent-notes={equivalentNotes}
-          data-hand={hand}
           onMouseDown={this.handleMouseDown}
-          className={classnames(
-            this.props.classes.key,
-            {
-              [this.props.classes.blackKey]: isBlack,
-              [this.props.classes.activeKey]: isActive,
-            }
-          )}
+          className={className}
           ref={
-            key === keyRange[0] ?
+            noteName === this.getLowestActiveKey() ?
               this.lowestActiveNoteRef :
               undefined
           }
         >
           {
-            this.props.showLabels && (
+            shouldShowLabel && (
               <div
                 className={this.props.classes.keyLabel}
-                data-note-name={noteName}
+                data-note-name={displayNoteName}
               ></div>
             )
           }
