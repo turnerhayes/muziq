@@ -75,6 +75,7 @@ const styles = {
   keyLabel: {
     display: "inline-block",
     marginTop: "-1.6em",
+    position: "absolute",
 
     "&::after": {
       content: "attr(data-note-name)",

@@ -3,47 +3,103 @@ import PropTypes from "prop-types";
 import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 
 
-class SheetMusicPane extends React.PureComponent {
+class SheetMusicPane extends React.Component {
   static propTypes = {
-    xml: PropTypes.string.isRequired,
+    xml: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Document),
+    ]).isRequired,
   }
 
   state = {
     osmd: null,
+    isLoaded: false,
+    isLoading: false,
   }
 
-  setOSMDObject() {
-    if (!this.state.osmd && this.containerRef.current) {
-      const osmd = new OpenSheetMusicDisplay(
-        this.containerRef.current,
+  setOSMDObject(callback) {
+    if (this.state.osmd) {
+      return callback();
+    }
+
+    this.setState(
+      (prevState) => {
+        const state = {};
+
+        let osmd = prevState.osmd;
+
+        if (!osmd && this.containerRef.current) {
+          osmd = new OpenSheetMusicDisplay(
+            this.containerRef.current,
+            {
+              autoResize: false,
+            }
+          );
+
+          state.osmd = osmd;
+        }
+
+        return state;
+      },
+      callback
+    );
+  }
+
+  loadXML() {
+    this.setOSMDObject(() => {
+      this.setState(
         {
-          autoResize: false,
+          isLoading: true,
+        },
+        () => {
+          this.state.osmd.load(this.props.xml).then(
+            () => this.setState({
+              isLoaded: true,
+              isLoading: false,
+            })
+          ).catch(
+            (err) => {
+              console.log(err);
+              this.setState({
+                isLoading: false,
+              });
+            }
+          );
         }
       );
-    
-      osmd.load(this.props.xml)
-        .then(
-          () => this.setState({
-            osmd,
-          })
-        ).catch(
-          (err) => console.log(err)
-        );
-    }
+    });
   }
 
   componentDidMount() {
-    this.setOSMDObject();
+    this.loadXML();
   }
   
-  componentDidUpdate() {
-    this.setOSMDObject();
+  componentDidUpdate(prevProps) {
+    if (this.props.xml !== prevProps.xml) {
+      this.setState(
+        {
+          isLoaded: false,
+          isLoading: false,
+        },
+        () => {
+          this.loadXML();
+        }
+      );
+    }
   }
 
   containerRef = React.createRef()
 
   render() {
-    this.state.osmd && (
+    if (this.state.isLoading) {
+      return (
+        <div>
+          Loading...
+        </div>
+      );
+    }
+
+    this.state.isLoaded && (
       this.state.osmd.render()
     );
 

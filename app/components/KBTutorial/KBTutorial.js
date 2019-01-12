@@ -61,6 +61,19 @@ const styles = {
     marginLeft: "1em",
   },
 
+  middleC: {
+    "&::after": {
+      content: '"MIDDLE C"',
+      display: "inline-block",
+      transform: "rotateZ(-90deg)",
+      whiteSpace: "nowrap",
+      height: "1em",
+      position: "relative",
+      top: "40%",
+      left: "-10%",
+    },
+  },
+
   targetWhiteKey: {
     backgroundColor: "yellow",
   },
@@ -113,19 +126,24 @@ class KBTutorial extends React.Component {
           return;
         }
 
-        this.setState((prevState) => {
-          const leftNoteNames = prevState.currentLeftNote &&
-            prevState.currentLeftNote.notes &&
-            prevState.currentLeftNote.notes.map((note) => note.name);
+        this.setState(
+          (prevState) => {
+            const leftNoteNames = prevState.currentLeftNote &&
+              prevState.currentLeftNote.notes &&
+              prevState.currentLeftNote.notes.map((note) => note.name);
 
-          const rightNoteNames = prevState.currentRightNote &&
-            prevState.currentRightNote.notes &&
-            prevState.currentRightNote.notes.map((note) => note.name);
+            const rightNoteNames = prevState.currentRightNote &&
+              prevState.currentRightNote.notes &&
+              prevState.currentRightNote.notes.map((note) => note.name);
 
-          return {
-            pressedKeys: Set(leftNoteNames).concat(rightNoteNames),
-          };
-        });
+            return {
+              pressedKeys: Set(leftNoteNames).concat(rightNoteNames || []),
+            };
+          },
+          () => {
+            this.checkPlayedNotes();
+          }
+        );
       };
     }
   }
@@ -299,11 +317,18 @@ class KBTutorial extends React.Component {
    * @param {"left"|"right"} hand - the hand keyboard this applies to
    * @param {object} noteArgs - the properties describing the note
    * @param {string} noteArgs.noteName - the name (step + octave) of the note (e.g. "A2")
+   * @param {number} noteArgs.key - the MIDI key number
    * @param {boolean} noteArgs.isBlack - whether the note is represented by a black key
    * 
    * @returns {string|undefined} the class name(s) to add, if any
    */
-  getKeyClass = (hand) => ({ noteName, isBlack }) => {
+  getKeyClass = (hand) => ({ noteName, key, isBlack }) => {
+    const classes = [];
+
+    if (key === MIDDLE_C_MIDI_NUMBER) {
+      classes.push(this.props.classes.middleC);
+    }
+
     const isPressed = this.state.pressedKeys.includes(noteName);
 
     const isLeftKey = !!(
@@ -333,12 +358,12 @@ class KBTutorial extends React.Component {
     ) {
       if (isPressed) {
         if (!isBlack) {
-          return this.props.classes.correctWhiteKey;
+          classes.push(this.props.classes.correctWhiteKey);
         }
       }
       else {
         if (!isBlack) {
-          return this.props.classes.targetWhiteKey;
+          classes.push(this.props.classes.targetWhiteKey);
         }
       }
     }
@@ -346,22 +371,22 @@ class KBTutorial extends React.Component {
       if (isPressed) {
         // Not correct for this hand--but maybe correct for the other hand? If so, ignore it
         if (
-          (
-            hand === "left" &&
-            isRightKey
-          ) || (
-            hand === "right" &&
-            isLeftKey
+          !(
+            (
+              hand === "left" &&
+              isRightKey
+            ) || (
+              hand === "right" &&
+              isLeftKey
+            )
           )
         ) {
-          return;
-        }
-
-        if (!isBlack) {
-          return this.props.classes.incorrectWhiteKey;
+          classes.push(this.props.classes.incorrectWhiteKey);
         }
       }
     }
+
+    return classnames(classes);
   }
 
   /**

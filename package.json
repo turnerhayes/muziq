@@ -94,7 +94,7 @@
     "morgan": "^1.9.0",
     "normalize.css": "^7.0.0",
     "nwmatcher": "^1.4.4",
-    "opensheetmusicdisplay": "file:../opensheetmusicdisplay",
+    "opensheetmusicdisplay": "^0.6.6",
     "passport": "^0.4.0",
     "passport-facebook-rwky": "^2.3.1",
     "passport-google-oauth20": "^1.0.0",

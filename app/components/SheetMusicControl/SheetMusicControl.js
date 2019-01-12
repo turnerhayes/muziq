@@ -1,15 +1,19 @@
+/* global require */
+
 import React from "react";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 
 import SheetMusicPane from "@app/components/SheetMusicPane";
-import xml from "@app/musicxml/Chrono Trigger - Wind Scene.xml";
 
-const filesByName = {
-  "Chrono Trigger - Wind Scene": xml,
-};
+const req = require.context("../../musicxml", true, /\.(\w*)xml$/);
+const filesByName = req.keys().reduce(
+  (files, fileName) => {
+    files[fileName] = req(fileName);
 
-const files = [
-  "Chrono Trigger - Wind Scene",
-];
+    return files;
+  }, {}
+);
 
 /**
  * Component representing the home page.
@@ -18,7 +22,7 @@ const files = [
  *
  * @memberof client.react-components
  */
-class SheelMusicControl extends React.PureComponent {
+class SheetMusicControl extends React.PureComponent {
   state = {
     selectedFile: null,
   }
@@ -40,31 +44,35 @@ class SheelMusicControl extends React.PureComponent {
     return (
       <div
       >
-        <select
+        <Select
+          value={this.state.selectedFile || ""}
           onChange={this.handleSelectFileChange}
         >
-          <option>-- Select one --</option>
           {
-            files.map(
-              (name) => (
-                <option
-                  key={name}
-                  value={name}
-                >{name}</option>
+            Object.keys(filesByName).map(
+              (fileName) => (
+                <MenuItem
+                  key={fileName}
+                  value={fileName}
+                >
+                  {fileName.replace(/\.\w*xml$/, "").replace(/^\.\//, "")}
+                </MenuItem>
               )
             )
           }
-        </select>
+        </Select>
         {
-          this.state.selectedFile !== null && (
-            <SheetMusicPane
-              xml={filesByName[this.state.selectedFile]}
-            />
-          )
+          this.state.selectedFile !== null ?
+            (
+              <SheetMusicPane
+                xml={filesByName[this.state.selectedFile]}
+              />
+            ) :
+            null
         }
       </div>
     );
   }
 }
 
-export default SheelMusicControl;
+export default SheetMusicControl;
