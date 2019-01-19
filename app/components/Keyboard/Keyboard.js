@@ -47,6 +47,7 @@ const styles = {
     boxShadow: "0px 4px 2px 0px",
     borderRadius: "0 0 3px 3px",
     backgroundColor: "white",
+    position: "relative",
   },
 
   activeKey: {

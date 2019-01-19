@@ -16,6 +16,7 @@ import { chord as detectChord } from "tonal-detect";
 
 import CleffLines from "@app/utils/midi/CleffLines";
 import Keyboard from "@app/components/Keyboard";
+import FakeMIDIKeyboard from "@app/components/FakeMIDIKeyboard";
 import {
   accessWrapper,
   midiLoadPromise,
@@ -322,7 +323,7 @@ class KBTutorial extends React.Component {
    * 
    * @returns {string|undefined} the class name(s) to add, if any
    */
-  getKeyClass = (hand) => ({ noteName, key, isBlack }) => {
+  getKeyClass = (hand) => ({ noteName, key, /* isBlack */ }) => {
     const classes = [];
 
     if (key === MIDDLE_C_MIDI_NUMBER) {
@@ -357,14 +358,14 @@ class KBTutorial extends React.Component {
       )
     ) {
       if (isPressed) {
-        if (!isBlack) {
-          classes.push(this.props.classes.correctWhiteKey);
-        }
+        // if (!isBlack) {
+        classes.push(this.props.classes.correctWhiteKey);
+        // }
       }
       else {
-        if (!isBlack) {
-          classes.push(this.props.classes.targetWhiteKey);
-        }
+        // if (!isBlack) {
+        classes.push(this.props.classes.targetWhiteKey);
+        // }
       }
     }
     else {
@@ -579,7 +580,7 @@ class KBTutorial extends React.Component {
               activeKeys={this.state.pressedKeys}
               getKeyClass={this.getKeyClass("right")}
               getShouldShowLabel={this.getShouldShowLabel("right")}
-              lowestKeyNumber={MIDDLE_C_MIDI_NUMBER}
+              lowestKeyNumber={Math.min(this.state.minRightNote, MIDDLE_C_MIDI_NUMBER)}
               highestKeyNumber={this.state.maxRightNote}
             />
             <Typography
@@ -596,6 +597,11 @@ class KBTutorial extends React.Component {
               }
             </Typography>
           </div>
+          <FakeMIDIKeyboard
+            minKeyNumber={this.state.minLeftNote}
+            maxKeyNumber={this.state.maxRightNote}
+            middleCClass={this.props.classes.middleC}
+          />
         </div>
       </div>
     );
