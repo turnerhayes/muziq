@@ -22,8 +22,10 @@ import {
   midiLoadPromise,
 } from "@app/utils/midi/midi-access";
 import partTimeXSLTString from "@app/parttime.xsl";
+import { MIDDLE_C_KEY_NUMBER } from "@app/utils/midi/constants";
 
-const MIDDLE_C_MIDI_NUMBER = 60;
+import { LeftTutorialKey, RightTutorialKey } from "./TutorialKey";
+
 
 const req = require.context("../../musicxml", true, /\.(\w*)xml$/);
 const xmlFiles = req.keys().reduce(
@@ -60,31 +62,6 @@ const styles = {
 
   rightHandKeyboard: {
     marginLeft: "1em",
-  },
-
-  middleC: {
-    "&::after": {
-      content: '"MIDDLE C"',
-      display: "inline-block",
-      transform: "rotateZ(-90deg)",
-      whiteSpace: "nowrap",
-      height: "1em",
-      position: "relative",
-      top: "40%",
-      left: "-10%",
-    },
-  },
-
-  targetWhiteKey: {
-    backgroundColor: "yellow",
-  },
-
-  correctWhiteKey: {
-    backgroundColor: "green",
-  },
-
-  incorrectWhiteKey: {
-    backgroundColor: "red",
   },
 };
 
@@ -313,84 +290,6 @@ class KBTutorial extends React.Component {
   }
 
   /**
-   * Gets the class name(s) for the key represented by the argument
-   * 
-   * @param {"left"|"right"} hand - the hand keyboard this applies to
-   * @param {object} noteArgs - the properties describing the note
-   * @param {string} noteArgs.noteName - the name (step + octave) of the note (e.g. "A2")
-   * @param {number} noteArgs.key - the MIDI key number
-   * @param {boolean} noteArgs.isBlack - whether the note is represented by a black key
-   * 
-   * @returns {string|undefined} the class name(s) to add, if any
-   */
-  getKeyClass = (hand) => ({ noteName, key, /* isBlack */ }) => {
-    const classes = [];
-
-    if (key === MIDDLE_C_MIDI_NUMBER) {
-      classes.push(this.props.classes.middleC);
-    }
-
-    const isPressed = this.state.pressedKeys.includes(noteName);
-
-    const isLeftKey = !!(
-      this.state.currentLeftNote &&
-      this.state.currentLeftNote.notes &&
-      this.state.currentLeftNote.notes.find(
-        (note) => note.name === noteName
-      )
-    );
-
-    const isRightKey = !!(
-      this.state.currentRightNote &&
-      this.state.currentRightNote.notes &&
-      this.state.currentRightNote.notes.find(
-        (note) => note.name === noteName
-      )
-    );
-    
-    if (
-      (
-        hand === "left" &&
-        isLeftKey
-      ) || (
-        hand === "right" &&
-        isRightKey
-      )
-    ) {
-      if (isPressed) {
-        // if (!isBlack) {
-        classes.push(this.props.classes.correctWhiteKey);
-        // }
-      }
-      else {
-        // if (!isBlack) {
-        classes.push(this.props.classes.targetWhiteKey);
-        // }
-      }
-    }
-    else {
-      if (isPressed) {
-        // Not correct for this hand--but maybe correct for the other hand? If so, ignore it
-        if (
-          !(
-            (
-              hand === "left" &&
-              isRightKey
-            ) || (
-              hand === "right" &&
-              isLeftKey
-            )
-          )
-        ) {
-          classes.push(this.props.classes.incorrectWhiteKey);
-        }
-      }
-    }
-
-    return classnames(classes);
-  }
-
-  /**
    * Gets a function for determining whether the keyboard should show the key label for the
    * given key.
    * 
@@ -431,6 +330,10 @@ class KBTutorial extends React.Component {
     reverse = false
   } = {}) {
     this.setState((prevState) => {
+      if (!prevState.cleffLines) {
+        return null;
+      }
+
       const state = {};
       const nextNotes = prevState.cleffLines[reverse ? "previousNotes" : "nextNotes"]({
         currentLeftNote: fromStart ? null : prevState.currentLeftNote,
@@ -550,10 +453,16 @@ class KBTutorial extends React.Component {
             <Keyboard
               scrollToLowestKeyOnChange
               activeKeys={this.state.pressedKeys}
-              getKeyClass={this.getKeyClass("left")}
-              getShouldShowLabel={this.getShouldShowLabel("left")}
               lowestKeyNumber={Math.max(0, this.state.minLeftNote)}
               highestKeyNumber={this.state.maxLeftNote}
+              keyComponent={(props) => (
+                <LeftTutorialKey
+                  {...props}
+                  pressedKeys={this.state.pressedKeys}
+                  currentLeftNote={this.state.currentLeftNote}
+                  currentRightNote={this.state.currentRightNote}
+                />
+              )}
             />
             <Typography
               align="center"
@@ -578,10 +487,16 @@ class KBTutorial extends React.Component {
             <Keyboard
               scrollToLowestKeyOnChange
               activeKeys={this.state.pressedKeys}
-              getKeyClass={this.getKeyClass("right")}
-              getShouldShowLabel={this.getShouldShowLabel("right")}
-              lowestKeyNumber={Math.min(this.state.minRightNote, MIDDLE_C_MIDI_NUMBER)}
+              lowestKeyNumber={Math.min(this.state.minRightNote, MIDDLE_C_KEY_NUMBER)}
               highestKeyNumber={this.state.maxRightNote}
+              keyComponent={(props) => (
+                <RightTutorialKey
+                  {...props}
+                  pressedKeys={this.state.pressedKeys}
+                  currentLeftNote={this.state.currentLeftNote}
+                  currentRightNote={this.state.currentRightNote}
+                />
+              )}
             />
             <Typography
               align="center"

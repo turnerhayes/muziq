@@ -4,20 +4,12 @@ import ImmutablePropTypes from "react-immutable-proptypes";
 import { Set } from "immutable";
 import classnames from "classnames";
 import { withStyles } from "@material-ui/core/styles";
+import RootRef from "@material-ui/core/RootRef";
 import DocumentEvents from "react-document-events";
 
 import { NoteNumberToName, NoteNameToNumber } from "@app/utils/midi/midi-note-converter";
+import Key from "./Key";
 
-const whiteKeyWidth = 3;
-
-// eslint-disable-next-line no-magic-numbers
-const whiteKeyHeight = whiteKeyWidth * 2;
-
-// eslint-disable-next-line no-magic-numbers
-const blackKeyWidth = whiteKeyWidth / 2;
-
-// eslint-disable-next-line no-magic-numbers
-const blackKeyHeight = whiteKeyHeight * 0.75;
 
 const styles = {
   root: {
@@ -33,59 +25,6 @@ const styles = {
   // Make room for the labels at top
   withLabels: {
     marginTop: "4em",
-  },
-
-  key: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "center",
-    border: "1px solid black",
-    width: `${whiteKeyWidth}em`,
-    minWidth: `${whiteKeyWidth}em`,
-    height: `${whiteKeyHeight}em`,
-    cursor: "pointer",
-    boxShadow: "0px 4px 2px 0px",
-    borderRadius: "0 0 3px 3px",
-    backgroundColor: "white",
-    position: "relative",
-  },
-
-  activeKey: {
-    transform: "rotateX(15deg)",
-    transformOrigin: "center top",
-  },
-  
-  blackKey: {
-    width: `${blackKeyWidth}em`,
-    minWidth: `${blackKeyWidth}em`,
-    height: `${(blackKeyHeight).toFixed(2)}em`,
-    backgroundColor: "black",
-    marginLeft: `-${(blackKeyWidth / 2).toFixed(2)}em`,
-    zIndex: 1,
-    boxShadow: "0px 4px 9px 0px",
-
-    "& $keyLabel": {
-      marginTop: "-3em",
-    },
-
-    "& + $key": {
-      marginLeft: `-${(blackKeyWidth / 2).toFixed(2)}em`,
-    },
-  },
-
-  keyLabel: {
-    display: "inline-block",
-    marginTop: "-1.6em",
-    position: "absolute",
-
-    "&::after": {
-      content: "attr(data-note-name)",
-      display: "inline-block",
-      transform: "rotateZ(-56deg)",
-      transformOrigin: "bottom center",
-      marginLeft: "50%",
-      whiteSpace: "nowrap",
-    },
   },
 };
 
@@ -105,6 +44,7 @@ class Keyboard extends React.PureComponent {
     onKeyRelease: PropTypes.func,
     getKeyClass: PropTypes.func,
     getShouldShowLabel: PropTypes.func,
+    keyComponent: PropTypes.func.isRequired,
   }
   
   static defaultProps = {
@@ -112,6 +52,7 @@ class Keyboard extends React.PureComponent {
     activeKeys: Set(),
     showLabels: true,
     scrollToLowestKeyOnChange: false,
+    keyComponent: Key,
   }
 
   state = {
@@ -229,7 +170,6 @@ class Keyboard extends React.PureComponent {
     const keyRange = this.getKeyRange();
     
     for (let key = keyRange[0]; key <= keyRange[1]; key++) {
-      
       /*
       A keyboard can be viewed as multiple blocks like this (W = white key, b = black key):
       
@@ -313,54 +253,42 @@ class Keyboard extends React.PureComponent {
           .isEmpty();
       }
 
-      let displayNoteName = noteName;
-
-      if (equivalentNote) {
-        displayNoteName = `${noteName}/${equivalentNote}`;
-      }
-
+      const Key = this.props.keyComponent;
+      
       const keyProps = {
-        key,
+        keyNumber: key,
         noteName,
-        equivalentNotes,
         isBlack,
+        isActive,
+        equivalentNotes,
+        onMouseDown: this.handleMouseDown,
+        showLabel: false,
       };
 
-      const className = classnames(
-        this.props.classes.key,
-        {
-          [this.props.classes.blackKey]: isBlack,
-          [this.props.classes.activeKey]: isActive,
-        },
-        this.props.getKeyClass && this.props.getKeyClass(keyProps)
-      );
+      let keyComp;
 
-      const shouldShowLabel = this.props.getShouldShowLabel && this.props.getShouldShowLabel(keyProps);
+      if (noteName === this.getLowestActiveKey()) {
+        keyComp = (
+          <RootRef
+            key={key}
+            rootRef={this.lowestActiveNoteRef}
+          >
+            <Key
+              {...keyProps}
+            />
+          </RootRef>
+        );
+      }
+      else {
+        keyComp = (
+          <Key
+            key={key}
+            {...keyProps}
+          />
+        );
+      }
 
-      keys.push(
-        <li
-          key={key}
-          data-key-number={key}
-          data-note-name={noteName}
-          data-equivalent-notes={equivalentNotes}
-          onMouseDown={this.handleMouseDown}
-          className={className}
-          ref={
-            noteName === this.getLowestActiveKey() ?
-              this.lowestActiveNoteRef :
-              undefined
-          }
-        >
-          {
-            shouldShowLabel && (
-              <div
-                className={this.props.classes.keyLabel}
-                data-note-name={displayNoteName}
-              ></div>
-            )
-          }
-        </li>
-      );
+      keys.push(keyComp);
     }
     
     return (

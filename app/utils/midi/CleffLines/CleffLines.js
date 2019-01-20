@@ -5,7 +5,11 @@ import RepeatItem from "./RepeatItem";
 import isPiano from "../is-piano";
 
 const getChordNoteNodes = ({ xmlDocument, startNote }) => {
-  const staffNumber = Number(startNote.querySelector("staff").textContent);
+  const staffNode = startNote.querySelector("staff");
+
+  const staffNumber = staffNode ?
+    Number(staffNode.textContent) :
+    1;
 
   const siblingsIterator = xmlDocument.evaluate(
     `following-sibling::note[staff/text() = "${staffNumber}"]`,
@@ -186,7 +190,11 @@ export default class CleffLines {
         };
 
         while (note) {
-          const staffNumber = Number(note.querySelector("staff").textContent);
+          const staffNode = note.querySelector("staff");
+          
+          const staffNumber = staffNode ?
+            Number(staffNode.textContent) :
+            1;
           
           // @todo more robust detection of right hand and left hand staves
           const hand = staffNumber === 1 ? "right" : "left";
