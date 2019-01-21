@@ -84,6 +84,7 @@ class MeasureSheetMusic extends React.PureComponent {
             sheetDisplay,
           })
         ).catch(
+          // eslint-disable-next-line no-console
           (err) => console.error(err)
         );
     }

@@ -3,7 +3,7 @@ import CodeMirror from "react-codemirror";
 import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 // import * as OSMD from "opensheetmusicdisplay";
 import { MusicSheet } from "opensheetmusicdisplay/lib/src/MusicalScore/MusicSheet";
-import { GraphicalMusicSheet } from "opensheetmusicdisplay/lib/src/MusicalScore/Graphical/GraphicalMusicSheet";
+// import { GraphicalMusicSheet } from "opensheetmusicdisplay/lib/src/MusicalScore/Graphical/GraphicalMusicSheet";
 import {
   VexFlowMusicSheetCalculator
 } from "opensheetmusicdisplay/lib/src/MusicalScore/Graphical/VexFlow/VexFlowMusicSheetCalculator";
@@ -19,6 +19,7 @@ import { Instrument } from "opensheetmusicdisplay/lib/src/MusicalScore/Instrumen
 const sheet = new MusicSheet();
 
 sheet.addMeasure(
+  // eslint-disable-next-line no-magic-numbers
   new SourceMeasure(2)
 );
 
@@ -30,14 +31,9 @@ sheet.fillStaffList();
 
 const calculator = new VexFlowMusicSheetCalculator();
 
-const gms = new GraphicalMusicSheet(sheet, calculator);
+// const gms = new GraphicalMusicSheet(sheet, calculator);
 
 calculator.initialize();
-
-console.log({
-  gms,
-});
-
 
 class MusicXMLGenerator extends React.PureComponent {
   state = {
@@ -70,6 +66,7 @@ class MusicXMLGenerator extends React.PureComponent {
             osmd,
           })
         ).catch(
+          // eslint-disable-next-line no-console
           (err) => console.log(err)
         );
     }

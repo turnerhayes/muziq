@@ -128,14 +128,19 @@ describe("MIDINoteConverter", () => {
 
   describe("NoteNameToNumber", () => {
     it("Should return the correct note number", () => {
+      // eslint-disable-next-line no-magic-numbers
       expect(NoteNameToNumber("A#0")).toBe(22);
-
+      
+      // eslint-disable-next-line no-magic-numbers
       expect(NoteNameToNumber("C-2")).toBe(-12);
-
+      
+      // eslint-disable-next-line no-magic-numbers
       expect(NoteNameToNumber("B5")).toBe(83);
-
+      
+      // eslint-disable-next-line no-magic-numbers
       expect(NoteNameToNumber("A#5")).toBe(82);
-
+      
+      // eslint-disable-next-line no-magic-numbers
       expect(NoteNameToNumber("D12")).toBe(158);
     });
   });

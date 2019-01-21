@@ -10,6 +10,7 @@ import ClearPressedKeysIcon from "@material-ui/icons/Close";
 
 import Keyboard from "@app/components/Keyboard";
 import FakeMIDIInput from "@app/utils/midi/FakeMIDIInput";
+import { MIDDLE_C_KEY_NUMBER } from "@app/utils/midi/constants";
 
 const styles = {
   toggleButton: {
@@ -30,7 +31,7 @@ class FakeMIDIKeyboard extends React.PureComponent {
   }
 
   getKeyClass = ({ key }) => {
-    if (key === 60 && this.props.middleCClass) {
+    if (key === MIDDLE_C_KEY_NUMBER && this.props.middleCClass) {
       return this.props.middleCClass;
     }
   }

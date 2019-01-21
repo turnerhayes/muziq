@@ -59,6 +59,7 @@ class SheetMusicPane extends React.Component {
             })
           ).catch(
             (err) => {
+              // eslint-disable-next-line no-console
               console.log(err);
               this.setState({
                 isLoading: false,
