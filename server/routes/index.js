@@ -18,6 +18,16 @@ function raise404(req, res, next) {
   next(err);
 }
 
+router.route("/manifest.json")
+  .get(
+    cors(),
+    (req, res) => res.sendFile(path.join(Config.paths.app, "manifest.json"))
+  );
+
+router.use("/static/images", express.static(
+  path.join(Config.paths.app, "images")
+));
+
 router.use(
   "/api",
   cors(SITE_RESTRICTED_CORS_OPTIONS),
@@ -30,12 +40,6 @@ router.use(
   createAuthenticationRouter("/auth"),
   raise404
 );
-
-router.route("/manifest.json")
-  .get(
-    cors(),
-    (req, res) => res.sendFile(path.resolve(Config.paths.app, "manifest.json"))
-  );
 
 exports = module.exports = {
   router,

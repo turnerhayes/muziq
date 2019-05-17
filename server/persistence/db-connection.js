@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const debug    = require("debug")("muziq:db");
 const Config   = require("../lib/config");
 
-mongoose.Promise = require("bluebird");
+mongoose.Promise = Promise;
 
 mongoose.set("debug", debug.enabled);
 

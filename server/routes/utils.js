@@ -1,7 +1,6 @@
 "use strict";
 
 const HTTPStatusCodes = require("http-status-codes");
-const Promise         = require("bluebird");
 const Config          = require("../lib/config");
 const UserStore       = require("../persistence/stores/user");
 
