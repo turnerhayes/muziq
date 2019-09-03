@@ -120,7 +120,7 @@
     "tonal-detect": "^2.2.2",
     "warning": "3.0.0",
     "webmidi": "^2.3.3",
-    "webpack-bundle-analyzer": "^2.11.1",
+    "webpack-bundle-analyzer": "^3.4.1",
     "whatwg-fetch": "2.0.3",
     "winston": "^2.4.0",
     "xmldom": "^0.1.27",
