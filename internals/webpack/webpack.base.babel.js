@@ -115,11 +115,6 @@ module.exports = (options) => ({
       },
 
       {
-        test: /\.json$/,
-        use: "json-loader",
-      },
-
-      {
         test: /\.wav(\?.*)?$/,
         use: "file-loader"
       },
