@@ -85,7 +85,7 @@
     "localforage": "^1.7.3",
     "lodash": "^4.17.10",
     "midi": "github:turnerhayes/MIDI.ts",
-    "minimist": "1.2.0",
+    "minimist": "1.2.2",
     "mkdirp": "^0.5.1",
     "mongodb": "^3.2.4",
     "mongoose": "^5.5.9",
